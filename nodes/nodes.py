@@ -10,3 +10,7 @@ class Class(object):
         self.__classType = classType
         self.__features = features
 
+
+class Feature(object):
+    def __init__(self, )
+

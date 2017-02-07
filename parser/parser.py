@@ -1,51 +1,29 @@
 import ply.lex as lex
 from ply.lex import TOKEN
 
-tokens = (
-    'NUMBERS',
-
-)
-
 
 class Scanner(object):
-
-
-    @property
-    def token_types(self):
-        return (
-           # identifier
-           "OBJECT_ID", "TYPE_ID",
-
-           # primitive type
-           "INTEGER", "STRING", "BOOLEAN",
-
-           # literals
-           "LPAREN", "RPAREN", "LBRACKET", "RBRACKET", "LBRACE", "RBRACE", "COLON", "SEMICOLON", "COMMA", "ALT", "DOT",
-
-           # operator
-           "LESSTHAN", "LESSEQ", "EQUAL", "BIGGERTHAN", "BIGGEREQ", "PLUS", "MINUS", "MULTIPLY", "DIVIDE", "ASSIGN", "NOT",
-        )
-
-    # t_LPAREN = r'\('
-    # t_RPAREN = r'\)'
-    # t_LBRACE = r'{'
-    # t_RBRACE = r'}'
-    # t_LBRACKET = r'['
-    # t_RBRACKET = r']'
-    # t_DOT = r'\.'
-    # t_COLON = r'\:'
-    # t_SEMICOLON = r';'
-    # t_COMMA = r'\,'
-    # t_PLUS = r'\+'
-    # t_MINUS = r'\-'
-    # t_MULTIPLY = r'\*'
-    # t_DIVIDE = r'\/'
-    # t_LESSTHAN = r'\<'
-    # t_LESSEQ = r'\<\='
-    # t_EQUAL = r'\='
-    # t_ASSIGN = r'\<\-'
-    # t_BIGGERTHAN = r'\>'
-    # t_BIGGEREQ = r'\>\='
+    t_LPAREN = r'\('
+    t_RPAREN = r'\)'
+    t_LBRACE = r'\{'
+    t_RBRACE = r'\}'
+    t_LBRACKET = r'\['
+    t_RBRACKET = r'\]'
+    t_DOT = r'\.'
+    t_COLON = r'\:'
+    t_SEMICOLON = r';'
+    t_COMMA = r'\,'
+    t_PLUS = r'\+'
+    t_MINUS = r'\-'
+    t_MULTIPLY = r'\*'
+    t_DIVIDE = r'\/'
+    t_LESSTHAN = r'\<'
+    t_LESSEQ = r'\<\='
+    t_EQUAL = r'\='
+    t_ASSIGN = r'\<\-'
+    t_BIGGERTHAN = r'\>'
+    t_BIGGEREQ = r'\>\='
+    t_STRING = r'\"([^\'\"\n]*(\\\s*\n)*)*\"'
 
     def __init__(self):
         self.tokens = ()
@@ -76,11 +54,30 @@ class Scanner(object):
             "pool": "POOL",
             "self": "SELF",
             "then": "THEN",
-            "while": "WHILE"
+            "while": "WHILE",
+            "not" : "NOT"
         }
 
+    @property
+    def token_types(self):
+        return (
+           # identifier
+           "OBJECT_ID", "TYPE_ID",
 
-    t_ignore = ' \t\r'
+           # primitive type
+           "INTEGER", "STRING", "BOOLEAN",
+
+           # literals
+           "LPAREN", "RPAREN", "LBRACKET", "RBRACKET", "LBRACE", "RBRACE", "COLON", "SEMICOLON", "COMMA", "ALT", "DOT",
+
+           # operator
+           "LESSTHAN", "LESSEQ", "EQUAL", "BIGGERTHAN", "BIGGEREQ", "PLUS", "MINUS", "MULTIPLY", "DIVIDE", "ASSIGN", "NOT",
+        )
+
+
+    t_ignore = ' \t\r\f\v\n'
+    t_ignore_COMMENT_DASH = r'\-\-.*'
+    t_ignore_COMMENT = r'\(\*.*\*\)'
 
     @TOKEN(r'true|false')
     def t_BOOLEAN(self, token):
@@ -94,7 +91,7 @@ class Scanner(object):
 
     @TOKEN(r'[A-Z][A-Za-z0-9_]*')
     def t_TYPE_ID(self, token):
-        token.type = self.reserved_keywords.get(token.value, 'OBJECT_ID')
+        token.type = self.reserved_keywords.get(token.value, 'TYPE_ID')
         return token
 
     @TOKEN(r'[a-z][a-zA-Z0-9_]*')

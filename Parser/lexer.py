@@ -21,10 +21,11 @@ class Scanner(object):
     t_LESSEQ = r'\<\='
     t_EQUAL = r'\='
     t_ASSIGN = r'\<\-'
-    t_BIGGERTHAN = r'\>'
-    t_BIGGEREQ = r'\>\='
+    t_GREATERTHAN = r'\>'
+    t_GREATEREQ = r'\>\='
     t_STRING = r'\"([^\'\"\n]*(\\\s*\n)*)*\"'
     t_ARROW = r'\=\>'
+    t_UNARY_COMP = r'\~'
 
     def __init__(self):
         self.tokens = ()
@@ -63,7 +64,7 @@ class Scanner(object):
     def token_types(self):
         return (
            # identifier
-           "OBJECT_ID", "TYPE_ID",
+           "ID", "TYPE_ID",
 
            # primitive type
            "INTEGER", "STRING", "BOOLEAN",
@@ -72,9 +73,9 @@ class Scanner(object):
            "LPAREN", "RPAREN", "LBRACKET", "RBRACKET", "LBRACE", "RBRACE", "COLON", "SEMICOLON", "COMMA", "ALT", "DOT",
 
            # operator
-           "LESSTHAN", "LESSEQ", "EQUAL", "BIGGERTHAN", "BIGGEREQ", "PLUS", "MINUS", "MULTIPLY", "DIVIDE", "ASSIGN",
+           "LESSTHAN", "LESSEQ", "EQUAL", "GREATERTHAN", "GREATEREQ", "PLUS", "MINUS", "MULTIPLY", "DIVIDE", "ASSIGN",
 
-           "ARROW"
+           "ARROW", "UNARY_COMP"
         )
 
 
@@ -99,7 +100,7 @@ class Scanner(object):
 
     @TOKEN(r'[a-z][a-zA-Z0-9_]*')
     def t_OBJECT_ID(self, token):
-        token.type = self.reserved_keywords.get(token.value, 'OBJECT_ID')
+        token.type = self.reserved_keywords.get(token.value, 'ID')
         return token
     
     @TOKEN(r'\n')
@@ -110,6 +111,10 @@ class Scanner(object):
         print("Illegal character '{}'".format(token.value[0]))
         token.lexer.skip(1)
 
+def make_lexer():
+    lexer = Scanner()
+    lexer.build()
+    return lexer
 
 if __name__ == "__main__":
     import sys

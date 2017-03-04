@@ -17,11 +17,11 @@ class Program(Node):
     def __init__(self, classes):
         self.classes = classes
 
-    def __str__(self):
-        return (
-            "Program\n"
-            "\t" + [str(c) for c in self.classes]
-        )
+    # def __str__(self):
+    #     return (
+    #         "Program\n"
+    #         "\t" + [str(c) for c in self.classes]
+    #     )
 
 class Class(Node):
     """
@@ -51,10 +51,10 @@ class FeatureAttribute(Feature):
     """
     feature ::= ID : TYPE [ <- expr ]
     """
-    def __init__(self, id, decType, initExpr):
+    def __init__(self, id, decType, init=None):
         self.id = id
         self.decType = decType
-        self.initExpr = initExpr
+        self.init = init
 
 class FormalParam(Node):
     """
@@ -80,11 +80,11 @@ class Dispatch(Expr):
     """
     expr ::= expr[@TYPE].ID( [ expr [[, expr]] ] )
     """
-    def __init__(self, objExpr, method, formalParams, parentClass=None):
+    def __init__(self, objExpr, method, arguments, parent=None):
         self.objExpr = objExpr
         self.method = method
-        self.formalParams = formalParams
-        self.parentClass = parentClass
+        self.arguments = arguments
+        self.parent = parent
 
 class MethodCall(Expr):
     """
@@ -122,10 +122,10 @@ class LetVarDecl(Node):
     """
     expr ::= ID : TYPE <- expr
     """
-    def __init__(self, id, decType, initVal=None):
+    def __init__(self, id, decType, init=None):
         self.id = id
         self.decType = decType
-        self.initVal = initVal
+        self.init = init
 
 class Let(Expr):
     """
@@ -261,6 +261,10 @@ class Boolean(Expr):
     """
     def __init__(self, bval):
         self.bval = bval
+
+class TwosComplement(Expr):
+    def __init__(self, expr):
+        self.expr = expr
 
 
 

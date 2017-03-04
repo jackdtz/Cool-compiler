@@ -1,14 +1,12 @@
-import ply.lex as lex
-from ply.lex import TOKEN
 
+import ply3.ply.lex as lex
+from ply3.ply.lex import TOKEN
 
 class Scanner(object):
     t_LPAREN = r'\('
     t_RPAREN = r'\)'
     t_LBRACE = r'\{'
     t_RBRACE = r'\}'
-    t_LBRACKET = r'\['
-    t_RBRACKET = r'\]'
     t_DOT = r'\.'
     t_COLON = r'\:'
     t_SEMICOLON = r';'
@@ -70,7 +68,7 @@ class Scanner(object):
            "INTEGER", "STRING", "BOOLEAN",
 
            # literals
-           "LPAREN", "RPAREN", "LBRACKET", "RBRACKET", "LBRACE", "RBRACE", "COLON", "SEMICOLON", "COMMA", "ALT", "DOT",
+           "LPAREN", "RPAREN", "LBRACE", "RBRACE", "COLON", "SEMICOLON", "COMMA", "ALT", "DOT",
 
            # operator
            "LESSTHAN", "LESSEQ", "EQUAL", "GREATERTHAN", "GREATEREQ", "PLUS", "MINUS", "MULTIPLY", "DIVIDE", "ASSIGN",
@@ -105,6 +103,10 @@ class Scanner(object):
     
     @TOKEN(r'\n')
     def t_newline(self,token):
+        token.lexer.lineno += 1
+
+    @TOKEN(r'\n+')
+    def t_newlines(self,token):
         token.lexer.lineno += len(token.value)
 
     def t_error(self, token):

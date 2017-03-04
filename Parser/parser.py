@@ -1,6 +1,6 @@
 from ast import *
 from lexer import *
-import ply.yacc as yacc
+import ply3.ply.yacc as yacc
 
 
 class Parser(object):
@@ -9,11 +9,11 @@ class Parser(object):
     precedence = (
         ('right', 'ASSIGN'),
         ('right', 'NOT'),
-        ('nonassoc', 'LESSTHAN', 'LESSEQ', 'EQUAL'),
+        ('nonassoc', 'LESSTHAN', 'LESSEQ', 'EQUAL', 'GREATERTHAN', 'GREATEREQ'),
         ('left', 'PLUS', 'MINUS'),
         ('left', 'MULTIPLY', 'DIVIDE'),
         ('right', 'ISVOID'),
-        # ('right', 'INT_COMP'),
+        ('right', 'UNARY_COMP'),
         ('left', 'ALT'),
         ('left', 'DOT')
     )
@@ -55,8 +55,8 @@ class Parser(object):
                 | class
         """
         if len(p) == 3:
-            p[2].append(p[1])
-            p[0] = p[2]
+            p[1].append(p[2])
+            p[0] = p[1]
         else:
             p[0] = [p[1]]
 
@@ -72,18 +72,18 @@ class Parser(object):
 
     def p_features(self, p):
         """
-        features : features feature SEMICOLON
+        features : features feature SEMICOLON 
                  | feature SEMICOLON
                  | empty
         """ 
 
         if len(p) == 4:
-            p[3].append(p[1])
-            p[0] = p[3]
+            p[1].append(p[2])
+            p[0] = p[1]
         elif len(p) == 3:
             p[0] = [p[1]]
         else:
-            pass
+            p[0] = []
     
     def p_feature(self, p):
         """
@@ -105,12 +105,12 @@ class Parser(object):
                 | empty
         """
         if len(p) == 4:
-            p[3].append(p[1])
-            p[0] = p[3]
+            p[1].append(p[3])
+            p[0] = p[1]
         elif len(p) == 2:
             p[0] = [p[1]]
         else:
-            pass
+            p[0] = []
     
     def p_formal(self, p):
         """
@@ -152,7 +152,7 @@ class Parser(object):
         elif len(p) == 2:
             p[0] = [p[1]]
         else:
-            pass
+            p[0] = []
         
     def p_argument(self, p):
         """
@@ -184,12 +184,12 @@ class Parser(object):
                     | expression SEMICOLON
         """
         if len(p) == 4:
-            p[3].append(p[2])
-            p[0] = p[3]
+            p[1].append(p[2])
+            p[0] = p[1]
         elif len(p) == 3:
-            p[0] = [p[2]]
+            p[0] = [p[1]]
         else:
-            pass
+            p[0] = []
     
     def p_expression_let(self, p):
         """
@@ -208,7 +208,7 @@ class Parser(object):
         elif len(p) == 3:
             p[0] = [p[2]]
         else:
-            pass
+            p[0] = []
 
     def p_let_var_decl(self, p):
         """
@@ -300,7 +300,7 @@ class Parser(object):
         """
         expression : LPAREN expression RPAREN
         """
-        p[0] = p[1]
+        p[0] = p[2]
 
     def p_expression_integer(self, p):
         """
@@ -319,6 +319,18 @@ class Parser(object):
         expression : BOOLEAN
         """
         p[0] = Boolean(p[1])
+
+    def p_expression_self(self, p):
+        """
+        expression : SELF
+        """
+        p[0] = Self()
+
+    def p_expression_id(self, p):
+        """
+        expression : ID
+        """
+        p[0] = p[1]
 
     def p_empty(self, p):
         """
@@ -339,7 +351,7 @@ if __name__ == "__main__":
 
     parser = make_parser()        
 
-    with open("Tests/helloworld.cl", encoding="utf-8") as file:
+    with open("Tests/helloworld.cl") as file:
             cool_program_code = file.read()
 
     parse_result = parser.parse(cool_program_code)

@@ -1,5 +1,6 @@
 from scope import *
 from cooltypes import *
+from utils import *
 
 class Node(object):
 
@@ -11,6 +12,10 @@ class Node(object):
     ]
     def __init__(self):
         pass
+
+    @staticmethod
+    def fold_left_op(scope, c):
+        return c.typecheck(scope)
 
 class Program(Node):
     """
@@ -24,10 +29,11 @@ class Program(Node):
 
     def typecheck(self):
         topScope = Scope()
-        for c in self.classes:
-            c.typecheck(topScope)
 
-        return True
+        finalScope, ty = fold_left(self.fold_left_op, topScope, self.classes)
+
+        return finalScope
+
      
 
 class Class(Node):
@@ -41,35 +47,35 @@ class Class(Node):
 
     def __str__(self):
         if self.features != None:
-            features = ", ".join([str(f) for f in self.features])
+            features = ";\n ".join([str(f) for f in self.features])
         else:
             features = ""  
 
         if self.inheritType:
-            return "class {} inherits {} ( {} );".format(str(self.className), str(self.inheritType), features)
+            return "class {} inherits {} {{ {} }};".format(str(self.className), str(self.inheritType), features)
         else:
-            return "class {} (\n {} \n);".format(str(self.className), features)
+            return "class {} {{\n {} \n}};".format(str(self.className), features)
 
     def typecheck(self, scope):
         if not scope:
             print("not scope avaiable for")
             exit()
 
+        parentType = scope.lookup(self.inheritType)
+
+        # if not parentType:
+
+
         copiedScope = scope.copy()
         classType = ClassType(self.inheritType)
         copiedScope.addToScope(self.className, classType)
-        copiedScope.openScope()
+        newscope = copiedScope.openScope()
 
-        for f in self.features:
-            f.typecheck(copiedScope)
+        finalScope, ty = fold_left(self.fold_left_op, newscope, self.features)
+
+        return finalScope, ty
+
         
-        return True
-
-        
-
-
-
-
 class Feature(Node):
     def __init__(self):
         pass
@@ -78,11 +84,11 @@ class FeatureMethodDecl(Feature):
     """
     feature ::= ID( [ formal [, formal]* ] ) : TYPE { expr }
     """
-    def __init__(self, methodName, formalParams, retType, bodyExpr):
+    def __init__(self, methodName, formalParams, retType, bodyExprs):
         self.methodName = methodName
         self.formalParams = formalParams
         self.retType = retType
-        self.bodyExpr = bodyExpr
+        self.bodyExprs = bodyExprs
 
     def __str__(self):
         if len(self.formalParams) == 1 and self.formalParams[0] == None:
@@ -90,11 +96,21 @@ class FeatureMethodDecl(Feature):
         else:
             params = ", ".join([str(f) for f in self.formalParams])
 
-        return "{}({}) : {} ( {} );".format(str(self.methodName), params , str(self.retType), str(self.bodyExpr))
+        body = ";\n\t".join([str(e) for e in self.bodyExprs])
+        
+        return "{}({}) : {} {{\n\t {} }};".format(str(self.methodName), params , str(self.retType), body)
 
     def typecheck(self, scope):
         copiedScope = scope.copy()
 
+        for formal in self.formalParams:
+            copiedScope.add(formal.id, formal.decType)
+        
+        newscope = Scope.openscope(copiedScope)
+
+        finalScope, ty = fold_left(self.fold_left_op, newscope, self.bodyExprs)
+
+        return finalScope, 
 
 class FeatureAttribute(Feature):
     """
@@ -110,7 +126,11 @@ class FeatureAttribute(Feature):
             return "{} : {} <- {}".format(str(self.id), str(self.decType), str(self.init))
         else:
             return "{} : {}".format(str(self.id), str(self.decType))
-
+        
+    def typecheck(self, scope):
+        scope.add(self.id, self.decType)
+        return scope
+        
 
 class FormalParam(Node):
     """
@@ -122,6 +142,7 @@ class FormalParam(Node):
 
     def __str__(self):
         return "{} : {}".format(str(self.id), str(self.decType))
+
 
 class Expr(Node):
     def __init__(self):
@@ -137,6 +158,9 @@ class AssignmentExpr(Expr):
 
     def __str__(self):
         return "{} <- {}".format(str(self.id), str(self.expr))
+
+    # def typecheck(self, scope):
+
 
 class Dispatch(Expr):
     """
@@ -432,6 +456,16 @@ class Id(Expr):
 
     def __str__(self):
         return str(self.id)
+
+class ParenExpr(Expr):
+    """
+    expr ::= (expr)
+    """
+    def __init__(self, e):
+        self.e = e
+    
+    def __str__(self):
+        return "({})".format(str(self.e))
 
 
 class TwosComplement(Expr):

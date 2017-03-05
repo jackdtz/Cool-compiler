@@ -77,7 +77,7 @@ class Scanner(object):
         )
 
 
-    t_ignore = ' \t\r\f\v\n'
+    t_ignore = ' \t\r\f\v'
     t_ignore_COMMENT_DASH = r'\-\-.*'
     t_ignore_COMMENT = r'\(\*.*\*\)'
 
@@ -120,9 +120,9 @@ def make_lexer():
 
 if __name__ == "__main__":
     import sys
-    input_file = sys.argv[1]
-    with open(input_file, encoding="utf-8") as file:
+    with open("Tests/test1.cl", encoding="utf-8") as file:
         cool_program_code = file.read()
+        print(cool_program_code)
 
     lexer = Scanner().build()
     lexer.input(cool_program_code)

@@ -8,40 +8,54 @@ class Parser(object):
 
     precedence = (
         ('right', 'ASSIGN'),
-        ('right', 'NOT'),
+        ('left', 'NOT'),
         ('nonassoc', 'LESSTHAN', 'LESSEQ', 'EQUAL', 'GREATERTHAN', 'GREATEREQ'),
         ('left', 'PLUS', 'MINUS'),
         ('left', 'MULTIPLY', 'DIVIDE'),
         ('right', 'ISVOID'),
         ('right', 'UNARY_COMP'),
         ('left', 'ALT'),
-        ('left', 'DOT')
+        ('left', 'DOT'),
     )
 
     def __init__(self):
         self.tokens = None
         self.parser = None
+        self.src = None
         self.lexer = make_lexer()
         self.error_list = []
+        self.start = 'program'
+        self.tracking = True
+
+    @staticmethod
+    def findpos(input, token):
+        last_cr = input.rfind('\n', 0, token.lexpos)
+
+        if last_cr < 0:
+            last_cr = 0
+
+        return token.lexpos - last_cr + 1
 
     def build(self):
         self.tokens = self.lexer.tokens
         self.parser = yacc.yacc(module=self)
 
     def parse(self, src):
-        return self.parser.parse(src)
+        self.src = src
+        return self.parser.parse(src, tracking=self.tracking)
 
 
     def p_error(self, parse):
 
         if parse is None:
             print("Error! Unexpected end of input!")
-            [print(e) for e in self.error_list]
+            # [print(e) for e in self.error_list]
         else:
             error = "Syntax error! Line: {}, position: {}, character: {}, type: {}".format(
-                parse.lineno, parse.lexpos, parse.value, parse.type)
+                parse.lineno, self.findpos(self.src, parse), parse.value, parse.type)
             self.error_list.append(error)
-            self.parser.errok()
+            # self.parser.errok()
+            print(error)
 
     def p_program(self, p):
         """
@@ -54,6 +68,7 @@ class Parser(object):
         classes : classes class
                 | class
         """
+        
         if len(p) == 3:
             p[1].append(p[2])
             p[0] = p[1]
@@ -72,31 +87,41 @@ class Parser(object):
 
     def p_features(self, p):
         """
-        features : features feature SEMICOLON 
-                 | feature SEMICOLON
+        features : features feature
+                 | feature
                  | empty
         """ 
-
-        if len(p) == 4:
+        if len(p) == 3:
             p[1].append(p[2])
             p[0] = p[1]
-        elif len(p) == 3:
+        elif len(p) == 2:
             p[0] = [p[1]]
         else:
             p[0] = []
     
     def p_feature(self, p):
         """
-        feature : ID LPAREN formals RPAREN COLON TYPE_ID LBRACE expression RBRACE
-                | ID COLON TYPE_ID 
-                | ID COLON TYPE_ID ASSIGN expression
+        feature : feature_method 
+                | feature_attribute
         """
-        if len(p) == 10:
-            p[0] = FeatureMethodDecl(p[1], p[3], p[6], p[8])
-        elif len(p) == 4:
+        p[0] = p[1]
+
+    def p_feature_method(self, p):
+        """
+        feature_method : ID LPAREN formals RPAREN COLON TYPE_ID LBRACE expressions RBRACE SEMICOLON
+        """
+        p[0] = FeatureMethodDecl(p[1], p[3], p[6], p[8])
+
+    def p_feature_attribute(self, p):
+        """
+        feature_attribute : ID COLON TYPE_ID SEMICOLON
+                          | ID COLON TYPE_ID ASSIGN expression SEMICOLON
+        """
+        if len(p) == 4:
             p[0] = FeatureAttribute(p[1], p[3])
         else:
             p[0] = FeatureAttribute(p[1], p[3], init=p[5])
+
 
     def p_formals(self, p):
         """
@@ -117,6 +142,7 @@ class Parser(object):
         formal : ID COLON TYPE_ID
         """
         p[0] = FormalParam(p[1], p[3])
+
 
     def p_expression_assignment(self, p):
         """
@@ -300,7 +326,7 @@ class Parser(object):
         """
         expression : LPAREN expression RPAREN
         """
-        p[0] = p[2]
+        p[0] = ParenExpr(p[2])
 
     def p_expression_integer(self, p):
         """
@@ -351,7 +377,7 @@ if __name__ == "__main__":
 
     parser = make_parser()        
 
-    with open("Tests/helloworld.cl") as file:
+    with open("Tests/test1.cl") as file:
             cool_program_code = file.read()
 
     parse_result = parser.parse(cool_program_code)

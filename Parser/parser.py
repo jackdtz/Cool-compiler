@@ -92,7 +92,7 @@ class Parser(object):
                 | ID COLON TYPE_ID ASSIGN expression
         """
         if len(p) == 10:
-            p[0] = FeatureMethod(p[1], p[3], p[6], p[8])
+            p[0] = FeatureMethodDecl(p[1], p[3], p[6], p[8])
         elif len(p) == 4:
             p[0] = FeatureAttribute(p[1], p[3])
         else:

@@ -1,3 +1,5 @@
+from scope import *
+from cooltypes import *
 
 class Node(object):
 
@@ -19,28 +21,51 @@ class Program(Node):
 
     def __str__(self):
         return "\n".join([str(c) for c in self.classes])
+
+    def typecheck(self):
+        topScope = Scope()
+        for c in self.classes:
+            c.typecheck(topScope)
+
+        return True
      
 
 class Class(Node):
     """
     class ::= class TYPE [inherits TYPE] { [feature;]* }
     """
-    def __init__(self, classType, features, inheritType=None):
-        self.classType = classType
+    def __init__(self, className, features, inheritType=None):
+        self.className = className
         self.inheritType = inheritType
         self.features = features
 
     def __str__(self):
-        
         if self.features != None:
             features = ", ".join([str(f) for f in self.features])
         else:
             features = ""  
 
         if self.inheritType:
-            return "class {} inherits {} ( {} );".format(str(self.classType), str(self.inheritType), features)
+            return "class {} inherits {} ( {} );".format(str(self.className), str(self.inheritType), features)
         else:
-            return "class {} (\n {} \n);".format(str(self.classType), features)
+            return "class {} (\n {} \n);".format(str(self.className), features)
+
+    def typecheck(self, scope):
+        if not scope:
+            print("not scope avaiable for")
+            exit()
+
+        copiedScope = scope.copy()
+        classType = ClassType(self.inheritType)
+        copiedScope.addToScope(self.className, classType)
+        copiedScope.openScope()
+
+        for f in self.features:
+            f.typecheck(copiedScope)
+        
+        return True
+
+        
 
 
 
@@ -49,7 +74,7 @@ class Feature(Node):
     def __init__(self):
         pass
 
-class FeatureMethod(Feature):
+class FeatureMethodDecl(Feature):
     """
     feature ::= ID( [ formal [, formal]* ] ) : TYPE { expr }
     """
@@ -65,8 +90,11 @@ class FeatureMethod(Feature):
         else:
             params = ", ".join([str(f) for f in self.formalParams])
 
-        
         return "{}({}) : {} ( {} );".format(str(self.methodName), params , str(self.retType), str(self.bodyExpr))
+
+    def typecheck(self, scope):
+        copiedScope = scope.copy()
+
 
 class FeatureAttribute(Feature):
     """

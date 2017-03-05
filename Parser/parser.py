@@ -49,13 +49,11 @@ class Parser(object):
 
         if parse is None:
             print("Error! Unexpected end of input!")
-            # [print(e) for e in self.error_list]
         else:
-            error = "Syntax error! Line: {}, position: {}, character: {}, type: {}".format(
-                parse.lineno, self.findpos(self.src, parse), parse.value, parse.type)
-            self.error_list.append(error)
+            msg = "Syntax error near \"{}\" at line: {}, position: {}".format(parse.value, parse.lineno, self.findpos(self.src, parse))
+            self.error_list.append(msg)
             # self.parser.errok()
-            print(error)
+            print(msg)
 
     def p_program(self, p):
         """

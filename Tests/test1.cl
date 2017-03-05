@@ -1,5 +1,5 @@
 class Main {
-   y : Integer  <- 3;
+   y : <- 3;
    main() : Sally { 
        3;
    };

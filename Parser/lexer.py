@@ -24,6 +24,7 @@ class Scanner(object):
     t_STRING = r'\"([^\'\"\n]*(\\\s*\n)*)*\"'
     t_ARROW = r'\=\>'
     t_UNARY_COMP = r'\~'
+    t_ALT = r'\@'
 
     def __init__(self):
         self.tokens = ()
@@ -79,7 +80,14 @@ class Scanner(object):
 
     t_ignore = ' \t\r\f\v'
     t_ignore_COMMENT_DASH = r'\-\-.*'
-    t_ignore_COMMENT = r'\(\*.*\*\)'
+    # t_ignore_COMMENT = r'\(\*(.|\n)*\*\)'
+
+
+    @TOKEN(r'\(\*(.|\n)* \*\)')
+    def t_COMMENT(self, token):
+        token.lexer.lineno += token.value.count('\n') 
+        pass
+    
 
     @TOKEN(r'true|false')
     def t_BOOLEAN(self, token):
@@ -110,7 +118,7 @@ class Scanner(object):
         token.lexer.lineno += len(token.value)
 
     def t_error(self, token):
-        print("Illegal character '{}'".format(token.value[0]))
+        print("Illegal character '{}' at line {}".format(token.value[0], token.lineno))
         token.lexer.skip(1)
 
 def make_lexer():
@@ -122,7 +130,7 @@ if __name__ == "__main__":
     import sys
     with open("Tests/test1.cl", encoding="utf-8") as file:
         cool_program_code = file.read()
-        print(cool_program_code)
+        # print(cool_program_code)
 
     lexer = Scanner().build()
     lexer.input(cool_program_code)

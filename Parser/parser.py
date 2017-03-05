@@ -115,7 +115,7 @@ class Parser(object):
         feature_attribute : ID COLON TYPE_ID SEMICOLON
                           | ID COLON TYPE_ID ASSIGN expression SEMICOLON
         """
-        if len(p) == 4:
+        if len(p) == 5:
             p[0] = FeatureAttribute(p[1], p[3])
         else:
             p[0] = FeatureAttribute(p[1], p[3], init=p[5])
@@ -219,7 +219,7 @@ class Parser(object):
         """
         expression : LET let_var_decls IN expression        
         """
-        p[0] = Let([p[2]] + p[3], p[5])
+        p[0] = Let(p[2], p[5])
 
     def p_let_var_decls(self, p):
         """
@@ -371,15 +371,21 @@ def make_parser():
 
 
 if __name__ == "__main__":
-    import sys
+    import sys, os, glob
 
-    parser = make_parser()        
+    parser = make_parser() 
+    root_path = '/Users/Jack/Documents/programming/python/coolCompiler'
+    test_folder = root_path + '/Tests'       
 
-    with open("Tests/test1.cl") as file:
-            cool_program_code = file.read()
 
-    parse_result = parser.parse(cool_program_code)
-    print(parse_result)
+    for filename in os.listdir(test_folder):
+        if filename.endswith('.cl'):
+            file_path = test_folder + "/" + filename
+            print("-------------------Testing parser with file {}-------------------".format(filename))
+            with open(file_path, encoding='utf-8') as file:
+                cool_program_code = file.read()
+                parse_result = parser.parse(cool_program_code)
+                print(parse_result)
     
         
 

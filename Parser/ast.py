@@ -96,9 +96,7 @@ class FeatureMethodDecl(Feature):
         else:
             params = ", ".join([str(f) for f in self.formalParams])
 
-        body = ";\n\t".join([str(e) for e in self.bodyExprs])
-        
-        return "{}({}) : {} {{\n\t {} }};".format(str(self.methodName), params , str(self.retType), body)
+        return "{}({}) : {} {{\n\t {} }};".format(str(self.methodName), params , str(self.retType), str(self.bodyExprs))
 
     def typecheck(self, scope):
         copiedScope = scope.copy()

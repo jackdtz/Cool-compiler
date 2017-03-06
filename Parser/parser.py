@@ -53,6 +53,7 @@ class Parser(object):
             msg = "Syntax error near \"{}\" at line: {}, position: {}".format(parse.value, parse.lineno, self.findpos(self.src, parse))
             self.error_list.append(msg)
             # self.parser.errok()
+            # print(self.error_list)
             print(msg)
 
     def p_program(self, p):
@@ -106,7 +107,7 @@ class Parser(object):
 
     def p_feature_method(self, p):
         """
-        feature_method : ID LPAREN formals RPAREN COLON TYPE_ID LBRACE expressions RBRACE SEMICOLON
+        feature_method : ID LPAREN formals RPAREN COLON TYPE_ID LBRACE expression RBRACE SEMICOLON
         """
         p[0] = FeatureMethodDecl(p[1], p[3], p[6], p[8])
 
@@ -171,7 +172,7 @@ class Parser(object):
                   | empty
         """
         if len(p) == 4:
-            p[3].append(p[1])
+            p[1].append(p[3])
             p[0] = p[1]
         elif len(p) == 2:
             p[0] = [p[1]]
@@ -219,7 +220,7 @@ class Parser(object):
         """
         expression : LET let_var_decls IN expression        
         """
-        p[0] = Let(p[2], p[5])
+        p[0] = Let(p[2], p[4])
 
     def p_let_var_decls(self, p):
         """
@@ -227,12 +228,10 @@ class Parser(object):
                       | let_var_decl
         """
         if len(p) == 4:
-            p[3].append(p[2])
-            p[0] = p[3]
-        elif len(p) == 3:
-            p[0] = [p[2]]
-        else:
-            p[0] = []
+            p[1].append(p[3])
+            p[0] = p[1]
+        elif len(p) == 2:
+            p[0] = [p[1]]
 
     def p_let_var_decl(self, p):
         """
@@ -373,10 +372,10 @@ def make_parser():
 if __name__ == "__main__":
     import sys, os, glob
 
-    parser = make_parser() 
     root_path = '/Users/Jack/Documents/programming/python/coolCompiler'
     test_folder = root_path + '/Tests'       
 
+    parser = make_parser() 
 
     for filename in os.listdir(test_folder):
         if filename.endswith('.cl'):
@@ -385,11 +384,16 @@ if __name__ == "__main__":
             with open(file_path, encoding='utf-8') as file:
                 cool_program_code = file.read()
                 parse_result = parser.parse(cool_program_code)
-                print(parse_result)
+                # print(parse_result)
+                
     
         
 
 
+    # with open("Tests/test1.cl") as file:
+    #         cool_program_code = file.read()
 
+    # parse_result = parser.parse(cool_program_code)
+    # print(parse_result)
 
 

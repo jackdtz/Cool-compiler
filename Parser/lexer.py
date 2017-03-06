@@ -21,7 +21,7 @@ class Scanner(object):
     t_ASSIGN = r'\<\-'
     t_GREATERTHAN = r'\>'
     t_GREATEREQ = r'\>\='
-    t_STRING = r'\"([^\'\"\n]*(\\\s*\n)*)*\"'
+    t_STRING = r'\"([^\"\\]|\\.)*\"'
     t_ARROW = r'\=\>'
     t_UNARY_COMP = r'\~'
     t_ALT = r'\@'
@@ -83,10 +83,9 @@ class Scanner(object):
     # t_ignore_COMMENT = r'\(\*(.|\n)*\*\)'
 
 
-    @TOKEN(r'\(\*(.|\n)* \*\)')
+    @TOKEN(r'\(\*(.|\n)*?\*\)')
     def t_COMMENT(self, token):
         token.lexer.lineno += token.value.count('\n') 
-        pass
     
 
     @TOKEN(r'true|false')
@@ -120,6 +119,10 @@ class Scanner(object):
     def t_error(self, token):
         print("Illegal character '{}' at line {}".format(token.value[0], token.lineno))
         token.lexer.skip(1)
+
+    def t_eof(self, token):
+        token.lexer.lineno = 1
+        token.lexpos = 0
 
 def make_lexer():
     lexer = Scanner()

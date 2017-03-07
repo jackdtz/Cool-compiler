@@ -1,4 +1,7 @@
 from collections import OrderedDict
+import sys
+from cool_types import *
+
 
 
 
@@ -7,31 +10,37 @@ class Scope(object):
     """
     each scope in a hash table
     """
-
-
-    def __init__(self, parent=None):
+    def __init__(self, selfclass : Type=None , parent : Type=None):
         self.parent = parent
-        self.table = {}
-
-        if self.parent:
-            self.level = self.parent.level + 1
-        else:
-            self.level = 0
+        self.selfclass = selfclass
+        self.ttable = {}
+        self.vtable = {}
 
 
-    def copy(self):
-        newtable = {}
 
-        for key, val in self.table.items():
-            newtable[key] = val
-        return newtable
+    def copy(self) -> 'Scope':
+        newScope = Scope(selfclass=self.selfclass, parent=self.parent)
 
-    def add(self, key, value):
-        self.table[key] = value
+        for key, val in self.ttable.items():
+            newScope.ttable[key] = val
+
+        for key, val in self.vtable.items():
+            newScope.vtable[key] = val
+        return newScope
+
+    def vadd(self, key, value):
+        self.vtable[key] = value
+
+    def tadd(self, key, value):
+        self.ttable[key] = value
+
     
 
-    def lookup(self, key):
-        val = self.table.get(key, None)
+    def vlookup(self, key, scope=None):
+        """
+        lookup in the value environment
+        """
+        val = self.vtable.get(key, None)
 
         if val:
             return val
@@ -47,9 +56,21 @@ class Scope(object):
 
         return val
 
+    def tlookup(self, key, scope : 'Scope') -> Type:
+        """
+        lookup in the type environment
+        """
+        pass 
+
 
     @staticmethod
-    def openscope(p):
-        return Scope(parent=p)
+    def openscope(parent=None, selfclass=None):
+        newscope = Scope(parent=parent)
+        if not selfclass:
+            newscope.selfclass = parent.selfclass
+        else:
+            newscope.selfclass = selfclass
+        return newscope
+
 
     

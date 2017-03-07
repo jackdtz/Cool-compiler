@@ -1,5 +1,7 @@
+
+
 class Type(object):
-    def __init__(self, parent : 'Type'=None):
+    def __init__(self, parent: 'Type'):
         self.parent = parent
 
     def isSubclassOf(self, c):
@@ -9,8 +11,40 @@ class Type(object):
             self = self.parent
         return False
 
+    def lengthToRoot(self):
+        count = 0
+        while self.parent != None:
+            self = self.parent
+            count += 1
+        return count
 
-class Object(Type):
+    def mutualParent(self, ty2):
+        ty1 = self
+        l1 = ty1.lengthToRoot()
+        l2 = ty2.lengthToRoot()
+
+        if l1 > l2:
+            count = l1 - l2
+            while count:
+                ty1 = ty1.parent
+                count -= 1
+        elif l2 > l1:
+            count = l2 - l1
+            while count:
+                ty2 = ty2.parent
+                count -= 1
+
+        while type(ty1) != type(ty2):
+            ty1 = ty1.parent
+            ty2 = ty2.parent
+
+        if type(ty1) == type(ty2):
+            return ty1
+
+        return None
+
+
+class ObjectType(Type):
     pass
 
 
@@ -42,8 +76,10 @@ class SelfType(Type):
 
 
 class ClassType(Type):
-    def __init__(self, parentType):
-        self.parentType = parentType
+    pass
+    # def __init__(self, parentType):
+    #     self.parentType = parentType
+
 
 class TopLevelClass():
     pass

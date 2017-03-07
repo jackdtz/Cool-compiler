@@ -294,7 +294,7 @@ class Parser(object):
         elif p[2] == '/':
             p[0] = AST.Divide(p[1], p[3])
         elif p[1] == "~":
-            p[0] = AST.TwosComplement(p[2])
+            p[0] = AST.Neg(p[2])
 
     def p_expression_comparison(self, p):
         """

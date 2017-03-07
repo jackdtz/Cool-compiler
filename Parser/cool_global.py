@@ -1,4 +1,4 @@
 
 from cool_types import *
 
-ObjectType = Object()
+ObjectType = ObjectType(parent=None)

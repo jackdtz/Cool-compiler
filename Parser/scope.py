@@ -3,20 +3,16 @@ import sys
 from cool_types import *
 
 
-
-
-
 class Scope(object):
     """
     each scope in a hash table
     """
-    def __init__(self, selfclass : Type=None , parent : Type=None):
+
+    def __init__(self, selfclass: Type=None, parent: Type=None):
         self.parent = parent
         self.selfclass = selfclass
         self.ttable = {}
         self.vtable = {}
-
-
 
     def copy(self) -> 'Scope':
         newScope = Scope(selfclass=self.selfclass, parent=self.parent)
@@ -33,8 +29,6 @@ class Scope(object):
 
     def tadd(self, key, value):
         self.ttable[key] = value
-
-    
 
     def vlookup(self, key, scope=None):
         """
@@ -56,12 +50,11 @@ class Scope(object):
 
         return val
 
-    def tlookup(self, key, scope : 'Scope') -> Type:
+    def tlookup(self, key, scope: 'Scope') -> Type:
         """
         lookup in the type environment
         """
-        pass 
-
+        pass
 
     @staticmethod
     def openscope(parent=None, selfclass=None):
@@ -71,6 +64,3 @@ class Scope(object):
         else:
             newscope.selfclass = selfclass
         return newscope
-
-
-    

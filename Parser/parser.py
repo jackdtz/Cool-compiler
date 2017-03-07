@@ -87,14 +87,13 @@ class Parser(object):
     def p_features(self, p):
         """
         features : features feature
-                 | feature
                  | empty
         """ 
         if len(p) == 3:
             p[1].append(p[2])
             p[0] = p[1]
-        elif len(p) == 2:
-            p[0] = [p[1]]
+        # elif len(p) == 2:
+        #     p[0] = [p[1]]
         else:
             p[0] = []
     
@@ -377,23 +376,23 @@ if __name__ == "__main__":
 
     parser = make_parser() 
 
-    for filename in os.listdir(test_folder):
-        if filename.endswith('.cl'):
-            file_path = test_folder + "/" + filename
-            print("-------------------Testing parser with file {}-------------------".format(filename))
-            with open(file_path, encoding='utf-8') as file:
-                cool_program_code = file.read()
-                parse_result = parser.parse(cool_program_code)
-                # print(parse_result)
+    # for filename in os.listdir(test_folder):
+    #     if filename.endswith('.cl'):
+    #         file_path = test_folder + "/" + filename
+    #         print("-------------------Testing parser with file {}-------------------".format(filename))
+    #         with open(file_path, encoding='utf-8') as file:
+    #             cool_program_code = file.read()
+    #             parse_result = parser.parse(cool_program_code)
+    #             # print(parse_result)
                 
     
         
 
 
-    # with open("Tests/helloworld.cl") as file:
-    #         cool_program_code = file.read()
+    with open("Tests/helloworld.cl") as file:
+            cool_program_code = file.read()
 
-    # parse_result = parser.parse(cool_program_code)
-    # print(parse_result)
+    parse_result = parser.parse(cool_program_code)
+    print(parse_result)
 
 

@@ -1,7 +1,7 @@
 from scope import *
 from cool_types import *
 from utils import *
-from typing import *
+from typing import List
 import cool_global as GLOBAL
 
 
@@ -304,7 +304,7 @@ class If(Expr):
         thn_ty = self.thn.typecheck(scope)
         els_ty = self.els.typecheck(scope)
 
-        mutual = thn_ty.mutualParent(els_ty)
+        mutual = thn_ty.mutualParentOfTwo(els_ty)
 
         if not mutual:
             print("if mismatch")
@@ -384,6 +384,8 @@ class Let(Expr):
     def __str__(self):
         return "let {} \tin \t{}\n".format("\n".join(["\t" + str(decl) + "\n" for decl in self.declareVars]), str(self.bodyExpr))
 
+    
+
 
 class CaseAction(Node):
     """
@@ -414,6 +416,31 @@ class Case(Expr):
             "{}"
             "esac"
         ).format(str(self.cond), ["\t" + str(action) + "\n" for action in self.actions])
+
+    def typecheck(self, scope):
+        _, cnd_ty = self.cond.typecheck(scope)
+
+        action_tys = []
+
+        for action in self.actions:
+            copiedScope = scope.copy()
+            action_id_ty = scope.getType(action.defType)
+            copiedScope.tadd(action.id, action_id_ty)
+            _, body_ty = action.body.typecheck(copiedScope)
+
+            if not type(action_id_ty) == type(body_ty):
+                print("case action type mismatch")
+                exit()
+
+            action_tys.append(body_ty)
+
+        ret_ty = Type.mutualParentOfAll(action_tys)
+
+        if not ret_ty:
+            print("error type mismatch")
+
+        return scope, ret_ty
+            
 
 
 class NewConstruct(Expr):

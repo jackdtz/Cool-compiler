@@ -1,3 +1,5 @@
+from utils import *
+from typing import List
 
 
 class Type(object):
@@ -18,8 +20,12 @@ class Type(object):
             count += 1
         return count
 
-    def mutualParent(self, ty2):
+    def mutualParentOfTwo(self, ty2):
         ty1 = self
+
+        if not ty1 or not ty2:
+            return None
+
         l1 = ty1.lengthToRoot()
         l2 = ty2.lengthToRoot()
 
@@ -42,6 +48,14 @@ class Type(object):
             return ty1
 
         return None
+
+    @staticmethod        
+    def mutualParentOfAll(tys: List['Type']):
+        t = tys[0]
+        for i in range(len(tys) - 1):
+            t = t.mutualParentOfTwo(tys[i + 1])
+
+        return t
 
 
 class ObjectType(Type):

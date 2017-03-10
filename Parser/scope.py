@@ -1,6 +1,8 @@
 from collections import OrderedDict
 import sys
-from cool_types import *
+from .cool_types import *
+import copy
+from . import cool_global as GLOBAL
 
 
 class Scope(object):
@@ -8,33 +10,50 @@ class Scope(object):
     each scope in a hash table
     """
 
-    def __init__(self, selfclass: Type=None, parent: Type=None):
+    def __init__(self, enclosingClass: Type=None, parent: Type=None):
         self.parent = parent
-        self.selfclass = selfclass
-        self.ttable = {}
-        self.vtable = {}
+        self.enclosingClass = enclosingClass
+        self.table = {}
 
     def copy(self) -> 'Scope':
-        newScope = Scope(selfclass=self.selfclass, parent=self.parent)
+        return copy.deepcopy(self)
 
-        for key, val in self.ttable.items():
-            newScope.ttable[key] = val
+    def add(self, key, value, ty):
+        self.table[key] = {}
+        self.table[key]['type'] = ty
+        self.table[key]['value'] = value
 
-        for key, val in self.vtable.items():
-            newScope.vtable[key] = val
-        return newScope
+    def lookup(self, key):
+        return self.lookupProperty(key, 'value')
 
-    def vadd(self, key, value):
-        self.vtable[key] = value
+    def lookupType(self, key):
+        return self.lookupProperty(key, 'type')
 
-    def tadd(self, key, value):
-        self.ttable[key] = value
+    def lookupLocal(self, key):
+        """
+        return either None or the value associated to key
+        """
+        return self.lookupProperty(key, 'value')
 
-    def vlookup(self, key, scope=None):
+    def lookupLocalType(self, key):
+        """
+        return either None or the type associated to key
+        """
+        return self.lookupProperty(key, 'type')
+
+    def lookupPropertyLocal(self, key, kind):
+        val = self.table.get(key, None)
+
+        if val:
+            return val[kind]
+
+        return None
+
+    def lookupProperty(self, key, kind):
         """
         lookup in the value environment
         """
-        val = self.vtable.get(key, None)
+        val = self.lookupPropertyLocal(key, kind)
 
         if val:
             return val
@@ -42,25 +61,45 @@ class Scope(object):
         s = self
         while s.parent and not val:
             s = s.parent
-            val = s.lookup(key)
+            val = s.lookupPropertyLocal(key)
 
         if not val:
-            print("Undefined val {}".format(str(key)))
-            return
+            return None
 
         return val
 
-    def tlookup(self, key, scope: 'Scope') -> Type:
-        """
-        lookup in the type environment
-        """
-        pass
+    def getDefiningScope(self, name : str) -> 'Scope':
+        ret = self.table.get(name, None)
 
-    @staticmethod
-    def openscope(parent=None, selfclass=None):
-        newscope = Scope(parent=parent)
-        if not selfclass:
-            newscope.selfclass = parent.selfclass
+        if ret:
+            return ret
+        elif self.parent:
+            return self.parent.getDefiningScope(name)
         else:
-            newscope.selfclass = selfclass
+            return None
+
+    def getEnclosingClassScope(self) -> 'Scope':
+        s = self
+        while s.parent.enclosingClass != GLOBAL.topLevelClass:
+            s = s.parent
+
+        return s
+            
+
+
+    def openscope(self, name : str, ty : 'Type', selfclass=None):
+        newscope = Scope(parent=self)
+        if not selfclass:
+            newscope.enclosingClass = self.enclosingClass
+        else:
+            newscope.enclosingClass = selfclass
+
+        self.table[name] = {
+            'type' : ty,
+            'value' : newscope
+        }
+
         return newscope
+
+    def leavescope(self):
+        return self.parent

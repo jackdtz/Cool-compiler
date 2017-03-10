@@ -1,6 +1,7 @@
 
-import ply3.ply.lex as lex
-from ply3.ply.lex import TOKEN
+from .ply3.ply import lex as lex
+
+from .ply3.ply.lex import TOKEN
 
 class Scanner(object):
     t_LPAREN = r'\('

@@ -1,6 +1,6 @@
 
 
-from .Parser.parser import *
+from parser import *
 
 if __name__ == "__main__":
     import sys, os, glob
@@ -21,9 +21,8 @@ if __name__ == "__main__":
                 
     
         
-    pwd = os.getcwd()
 
-    with open(pwd + "/coolCompiler/Tests/helloworld.cl") as file:
+    with open("Tests/helloworld.cl") as file:
             cool_program_code = file.read()
 
     parse_result = parser.parse(cool_program_code)

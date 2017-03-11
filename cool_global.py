@@ -1,5 +1,5 @@
 
-from .cool_types import *
+from cool_types import *
 
 ObjectType = ObjectType(parent=None)
 

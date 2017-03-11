@@ -1,8 +1,8 @@
 from collections import OrderedDict
 import sys
-from .cool_types import *
+from cool_types import *
 import copy
-from . import cool_global as GLOBAL
+import cool_global as GLOBAL
 
 
 class Scope(object):

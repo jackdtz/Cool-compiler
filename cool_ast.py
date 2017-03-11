@@ -1,8 +1,8 @@
-from .scope import *
-from .cool_types import *
-from .utils import *
+from scope import *
+from cool_types import *
+from utils import *
 from typing import List
-from . import cool_global as GLOBAL
+import cool_global as GLOBAL
 
 class Node(object):
 

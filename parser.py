@@ -348,7 +348,7 @@ class Parser(object):
         """
         expression : ID
         """
-        p[0] = p[1]
+        p[0] = Id(p[1])
 
     def p_empty(self, p):
         """

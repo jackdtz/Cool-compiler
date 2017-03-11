@@ -18,13 +18,13 @@ class Node(object):
 
     def getType(self, scope:'Scope', type_str: str) -> Type:
         if type_str == 'Int':
-            return IntegerType
+            return IntegerType()
         elif type_str == 'String':
-            return StringType
+            return StringType()
         elif type_str == 'Boolean':
-            return BooleanType
+            return BooleanType()
         elif type_str == 'self':
-            return SelfType
+            return SelfType()
         else:
             return scope.lookupType(type_str)
 
@@ -46,6 +46,7 @@ class Program(Node):
 
     def typecheck(self):
         topScope = Scope(enclosingClass=GLOBAL.topLevelClass, parent=None)
+        Scope.initTopScope(topScope)
 
         for c in self.classes:
             c.typecheck(topScope)
@@ -78,16 +79,19 @@ class Class(Node):
 
         if self.inheritType:
             parentClassType = self.getType(scope, self.inheritType)
+            parentClassScope = scope.getDefiningScope(self.inheritType)
         else:
             parentClassType = GLOBAL.ObjectType
+            parentClassScope = scope.getDefiningScope('Object')
 
         classType = ClassType(parent=parentClassType)
         newscope = scope.openscope(self.className, classType)
+        newscope.parentClassScope = parentClassScope
 
         for feature in self.features:
             _, ty = feature.typecheck(newscope)
 
-        return classType
+        return None, classType
 
 
 class Feature(Node):
@@ -122,7 +126,7 @@ class FeatureMethodDecl(Feature):
 
         _, ty = self.bodyExpr.typecheck(newscope)
 
-        return functionType
+        return None, functionType
 
 
 class FeatureAttribute(Feature):
@@ -144,7 +148,7 @@ class FeatureAttribute(Feature):
     def typecheck(self, scope: Scope):
         decType = self.getType(scope, self.decType)
         scope.add(self.id, None, decType)
-        return decType
+        return None, decType
 
 
 class FormalParam(Node):
@@ -178,16 +182,16 @@ class AssignmentExpr(Expr):
         return "{} <- {}".format(str(self.id), str(self.expr))
 
     def typecheck(self, scope: Scope):
-        id_ty = scope.lookupType(scope, self.id)
+        id_ty = scope.lookupType(self.id)
 
-        e_ty = self.expr.typecheck(scope)
+        _, e_ty = self.expr.typecheck(scope)
 
-        if not e_ty.isSubClassOf(id_ty):
+        if not e_ty.isSubclassOf(id_ty):
             print("Type mismatch for var {} and expression {}".format(
                 str(id_ty), str(self.expr)))
             exit()
 
-        return e_ty
+        return None, e_ty
 
 
 class Dispatch(Expr):
@@ -249,7 +253,7 @@ class Dispatch(Expr):
         if function_ty.ret_ty == SelfType:
             return classType
 
-        return function_ty.ret_ty
+        return None, function_ty.ret_ty
 
 
 class MethodCall(Expr):
@@ -266,7 +270,7 @@ class MethodCall(Expr):
         return "{}({})".format(str(self.id), ", ".join([str(e) for e in self.args]))
 
     def typecheck(self, scope):
-        method_ty = scope.lookup(self.id)
+        method_ty = scope.lookupType(self.id)
 
         if not method_ty:
             print("{} is not defined".format(self.id))
@@ -277,14 +281,17 @@ class MethodCall(Expr):
             print("type mismatch")
             exit()
 
-        arg_tys = [arg.typecheck(scope) for arg in self.args]
+        arg_tys = []
+        for arg in self.args:
+            _, ty = arg.typecheck(scope)
+            arg_tys.append(ty)
 
         for arg_ty, formal_ty in zip(arg_tys, method_ty.param_tys):
-            if not arg_ty.isSubClassOf(formal_ty):
-                print("type mismatch")
+            if not arg_ty.isSubclassOf(formal_ty):
+                print("type mismatch here")
                 exit()
 
-        return method_ty.ret_ty
+        return None, method_ty.ret_ty
 
 
 class If(Expr):
@@ -315,7 +322,7 @@ class If(Expr):
             print("if mismatch")
             exit()
 
-        return mutual
+        return None, mutual
 
 
 class While(Expr):
@@ -339,7 +346,7 @@ class While(Expr):
 
         self.bodyExpr.typecheck(scope)
 
-        return GLOBAL.ObjectType
+        return None, GLOBAL.ObjectType
 
 
 class Block(Expr):
@@ -360,7 +367,7 @@ class Block(Expr):
 
         ty = self.exprs[-1].typecheck(scope)
 
-        return ty
+        return None, ty
 
 
 class LetVarDecl(Node):
@@ -457,7 +464,7 @@ class Case(Expr):
         if not ret_ty:
             print("error type mismatch")
 
-        return scope, ret_ty
+        return None, ret_ty
 
 
 class NewConstruct(Expr):
@@ -494,7 +501,7 @@ class IsVoid(Expr):
     def typecheck(self, scope):
         val, ty = self.expr.typecheck(scope)
 
-        return None, BooleanType
+        return None, BooleanType()
 
 
 class BinaryOp(Expr):
@@ -510,7 +517,12 @@ class BinaryOp(Expr):
             print("type mismatch")
             exit()
 
-        return None, BooleanType
+        if isinstance(self, (Plus, Minus, Multiply, Divide)):
+            return None, IntegerType()
+
+        return None, BooleanType()
+
+
 
 
 class Plus(BinaryOp):
@@ -619,7 +631,7 @@ class Eq(BinaryOp):
             print("type mismatch")
             exit()
 
-        return None, BooleanType
+        return None, BooleanType()
 
 
 class GreaterThan(BinaryOp):
@@ -663,7 +675,7 @@ class Not(Expr):
         if not isinstance(ty, BooleanType):
             print("boolena type mismatch")
 
-        return None, BooleanType
+        return None, BooleanType()
 
 
 class Integer(Expr):
@@ -678,7 +690,7 @@ class Integer(Expr):
         return str(self.ival)
 
     def typecheck(self, scope: Scope):
-        return self.ival, IntegerType(self)
+        return self.ival, IntegerType()
 
 
 class String(Expr):
@@ -693,7 +705,7 @@ class String(Expr):
         return str(self.sval)
 
     def typecheck(self, scope):
-        return self.sval, StringType(self)
+        return self.sval, StringType()
 
 
 class Boolean(Expr):
@@ -708,7 +720,7 @@ class Boolean(Expr):
         return str(self.bval)
 
     def typecheck(self, scope):
-        return self.bval, BooleanType(self)
+        return self.bval, BooleanType()
 
 
 class Self(Expr):
@@ -739,7 +751,7 @@ class Id(Expr):
 
     def typecheck(self, scope: Scope):
 
-        ty = scope.look(self.id)
+        ty = scope.lookupType(self.id)
 
         return None, ty
 
@@ -771,3 +783,21 @@ class Neg(Expr):
             exit()
 
         return None, IntegerType
+
+
+
+if __name__ == "__main__":
+    import sys, os, glob
+    from parser import make_parser
+
+    root_path = '/Users/Jack/Documents/programming/python/coolCompiler'
+    test_folder = root_path + '/Tests'       
+
+    parser = make_parser() 
+
+
+    with open("Tests/helloworld.cl") as file:
+            cool_program_code = file.read()
+
+    parse_result = parser.parse(cool_program_code)
+    print(parse_result.typecheck())

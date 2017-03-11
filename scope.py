@@ -13,6 +13,7 @@ class Scope(object):
     def __init__(self, enclosingClass: Type=None, parent: Type=None):
         self.parent = parent
         self.enclosingClass = enclosingClass
+        self.parentClassScope = None
         self.table = {}
 
     def copy(self) -> 'Scope':
@@ -61,18 +62,21 @@ class Scope(object):
         s = self
         while s.parent and not val:
             s = s.parent
-            val = s.lookupPropertyLocal(key)
+            val = s.lookupPropertyLocal(key, kind)
 
-        if not val:
-            return None
+        if val:
+            return val
 
-        return val
+        if self.parentClassScope:
+            return self.parentClassScope.lookupProperty(key, kind)
+
+        return None
 
     def getDefiningScope(self, name : str) -> 'Scope':
         ret = self.table.get(name, None)
 
         if ret:
-            return ret
+            return ret['value']
         elif self.parent:
             return self.parent.getDefiningScope(name)
         else:
@@ -89,6 +93,7 @@ class Scope(object):
 
     def openscope(self, name : str, ty : 'Type', selfclass=None):
         newscope = Scope(parent=self)
+        newscope.parentClassScope = self.parentClassScope
         if not selfclass:
             newscope.enclosingClass = self.enclosingClass
         else:
@@ -103,3 +108,11 @@ class Scope(object):
 
     def leavescope(self):
         return self.parent
+
+    @staticmethod
+    def initTopScope(scope):
+        io_scope = Scope(parent=scope)
+        io_scope.add('out_string', None, FuncType([StringType()], VoidType()))
+        io_scope.add('out_int', None, FuncType([IntegerType()], VoidType()))
+        scope.add('IO', io_scope, ClassType(parent=GLOBAL.objectType))
+

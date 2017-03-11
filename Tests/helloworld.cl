@@ -7,7 +7,7 @@ class Main inherits IO {
     {
       out_string("Hello, world.\n") ;
       z <- (x + 3) * y /2;
-      out_string(z);
+      out_int(z);
     }
   } ; 
 } ; 

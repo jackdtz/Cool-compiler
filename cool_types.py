@@ -3,7 +3,7 @@ from typing import List
 
 
 class Type(object):
-    def __init__(self, parent: 'Type'):
+    def __init__(self, parent: 'Type'=None):
         self.parent = parent
 
     def isSubclassOf(self, c):
@@ -55,8 +55,6 @@ class Type(object):
         for i in range(len(tys) - 1):
             t = t.mutualParentOfTwo(tys[i + 1])
 
-        return t
-
 
 class ObjectType(Type):
     pass
@@ -91,9 +89,11 @@ class SelfType(Type):
 
 class ClassType(Type):
     pass
-    # def __init__(self, parentType):
-    #     self.parentType = parentType
+
 
 
 class TopLevelClass():
+    pass
+
+class VoidType():
     pass

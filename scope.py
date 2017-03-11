@@ -112,7 +112,21 @@ class Scope(object):
     @staticmethod
     def initTopScope(scope):
         io_scope = Scope(parent=scope)
-        io_scope.add('out_string', None, FuncType([StringType()], VoidType()))
-        io_scope.add('out_int', None, FuncType([IntegerType()], VoidType()))
+        io_scope.add('out_string', None, FuncType([StringType()], SelfType()))
+        io_scope.add('out_int', None, FuncType([IntegerType()], SelfType()))
+        io_scope.add('in_string', None, FuncType([], StringType()))
+        io_scope.add('in_int', None, FuncType([], IntegerType()))
         scope.add('IO', io_scope, ClassType(parent=GLOBAL.objectType))
+
+        object_scope = Scope(parent=scope)
+        object_scope.add('abort', None, GLOBAL.objectType)
+        object_scope.add('type_name', None, StringType())
+        object_scope.add('copy', None, SelfType())
+        scope.add('Object', object_scope, GLOBAL.objectType)
+
+        string_scope = Scope(parent=scope)
+        string_scope.add('length', None, FuncType([], IntegerType()))
+        string_scope.add('concat', None, FuncType([StringType()], StringType()))
+        string_scope.add('substr', None, FuncType([IntegerType(), IntegerType()], StringType()))
+        scope.add('String', object_scope, StringType(parent=GLOBAL.objectType))
 

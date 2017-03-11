@@ -49,6 +49,17 @@ class Program(Node):
         Scope.initTopScope(topScope)
 
         for c in self.classes:
+            if c.inheritType:
+                parentClassType = self.getType(topScope, c.inheritType)
+            else:
+                parentClassType = GLOBAL.ObjectType
+
+            classType = ClassType(parent=parentClassType)
+            classScope = Scope(parent=topScope)
+            classScope.enclosingClass = classType 
+            topScope.add(c.className, classScope, classType)
+
+        for c in self.classes:
             c.typecheck(topScope)
 
         return topScope
@@ -78,20 +89,17 @@ class Class(Node):
     def typecheck(self, scope: Scope):
 
         if self.inheritType:
-            parentClassType = self.getType(scope, self.inheritType)
             parentClassScope = scope.getDefiningScope(self.inheritType)
         else:
-            parentClassType = GLOBAL.ObjectType
             parentClassScope = scope.getDefiningScope('Object')
 
-        classType = ClassType(parent=parentClassType)
-        newscope = scope.openscope(self.className, classType, selfclass=classType)
+        newscope = scope.getDefiningScope(self.className)
         newscope.parentClassScope = parentClassScope
 
         for feature in self.features:
             _, ty = feature.typecheck(newscope)
 
-        return None, classType
+        return None, scope.lookupLocalType(self.className)
 
 
 class Feature(Node):
@@ -128,7 +136,7 @@ class FeatureMethodDecl(Feature):
 
         _, ty = self.bodyExpr.typecheck(newscope)
         
-        if ty == SelfType:
+        if isinstance(ty, SelfType):
             ty = scope.enclosingClass
 
         if not ty.isSubclassOf(ret_ty):

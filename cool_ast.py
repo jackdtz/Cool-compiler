@@ -85,7 +85,7 @@ class Class(Node):
         newscope = scope.openscope(self.className, classType)
 
         for feature in self.features:
-            newscope, _ = feature.typecheck(newscope)
+            _, ty = feature.typecheck(newscope)
 
         return classType
 
@@ -123,7 +123,7 @@ class FeatureMethodDecl(Feature):
 
         newscope = scope.openscope(self.methodName, functionType)
 
-        finalScope, ty = fold_left(self.fold_left_op, newscope, self.bodyExpr)
+        _, ty = self.bodyExpr.typecheck(newscope)
 
         return functionType
 

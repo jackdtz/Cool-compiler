@@ -1,6 +1,6 @@
 
-from cool_types import *
+from cool_types import ObjectType, TopLevelClass
 
-ObjectType = ObjectType(parent=None)
+objectType = ObjectType(parent=None)
 
 topLevelClass = TopLevelClass()

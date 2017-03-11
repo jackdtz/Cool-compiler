@@ -23,8 +23,8 @@ class Node(object):
             return StringType()
         elif type_str == 'Boolean':
             return BooleanType()
-        elif type_str == 'self':
-            return SelfType()
+        elif type_str == 'SELF_TYPE':
+            return scope.enclosingClass
         else:
             return scope.lookupType(type_str)
 
@@ -85,7 +85,7 @@ class Class(Node):
             parentClassScope = scope.getDefiningScope('Object')
 
         classType = ClassType(parent=parentClassType)
-        newscope = scope.openscope(self.className, classType)
+        newscope = scope.openscope(self.className, classType, selfclass=classType)
         newscope.parentClassScope = parentClassScope
 
         for feature in self.features:
@@ -123,8 +123,17 @@ class FeatureMethodDecl(Feature):
         functionType = FuncType(formal_tys, ret_ty)
 
         newscope = scope.openscope(self.methodName, functionType)
+        for formal, formal_ty in zip(self.formalParams, formal_tys):
+            newscope.add(formal.id, None, formal_ty)
 
         _, ty = self.bodyExpr.typecheck(newscope)
+        
+        if ty == SelfType:
+            ty = scope.enclosingClass
+
+        if not ty.isSubclassOf(ret_ty):
+            print("method declaration type mismatch")
+            exit()
 
         return None, functionType
 
@@ -217,7 +226,11 @@ class Dispatch(Expr):
         if isinstance(self.objExpr, Self):
             classType = scope.enclosingClass
         else:
-            classType = self.objExpr.typecheck(scope)
+            _, classType = self.objExpr.typecheck(scope)
+
+        if not classType:
+            print("error class {} not yet define".format(str(self.objExpr)))
+            exit()
 
         if self.parent:
             parentScope = scope.getDefiningScope(self.parent)
@@ -232,7 +245,7 @@ class Dispatch(Expr):
             parentClassScope = scope.getEnclosingClassScope()
             parentClassType = classType
 
-        if not classType.isSubClassOf(parentClassType):
+        if not classType.isSubclassOf(parentClassType):
             print("Type mismatch")
             exit()
 
@@ -365,7 +378,7 @@ class Block(Expr):
         for i in range(len(self.exprs) - 1):
             self.exprs[i].typecheck(scope)
 
-        ty = self.exprs[-1].typecheck(scope)
+        _, ty = self.exprs[-1].typecheck(scope)
 
         return None, ty
 
@@ -403,14 +416,18 @@ class Let(Expr):
         for decl in self.declareVars:
             copiedScope = scope.copy()
             decType = self.getType(copiedScope, decl.decType)
-            decInitVal, decInitType = decl.init.typecheck(copiedScope)
-            scope.add(decl.id, decInitVal, decInitType)
+            if decl.init:
+                decInitVal, decInitType = decl.init.typecheck(copiedScope)
+                if not decInitType.isSubclassOf(decType):
+                    print("type mismatch at let declaration")
+                    exit()
+                scope.add(decl.id, decInitVal, decInitType)
+            else:
+                scope.add(decl.id, None, decType)
 
-            if not issubclass(decInitType, decType):
-                print("type mismatch")
-                exit()
+       
             
-        return scope.typecheck(self.bodyExpr)
+        return self.bodyExpr.typecheck(scope)
 
 class CaseAction(Node):
     """

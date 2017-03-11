@@ -15,8 +15,9 @@ class Type(object):
 
     def lengthToRoot(self):
         count = 0
-        while self.parent != None:
-            self = self.parent
+        s = self
+        while s.parent != None:
+            s = s.parent
             count += 1
         return count
 
@@ -92,8 +93,8 @@ class ClassType(Type):
 
 
 
-class TopLevelClass():
+class TopLevelClass(ClassType):
     pass
 
-class VoidType():
+class VoidType(Type):
     pass

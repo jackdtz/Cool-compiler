@@ -52,7 +52,7 @@ class Program(Node):
             if c.inheritType:
                 parentClassType = self.getType(topScope, c.inheritType)
             else:
-                parentClassType = GLOBAL.ObjectType
+                parentClassType = GLOBAL.objectType
 
             classType = ClassType(parent=parentClassType)
             classScope = Scope(parent=topScope)
@@ -264,15 +264,18 @@ class Dispatch(Expr):
             print("{} is not defined".format(self.methodName))
             exit()
 
-        arg_tys = [scope.typecheck(arg) for arg in self.arguments]
+        arg_tys = []
+        for arg in self.arguments:
+            _, arg_ty = arg.typecheck(scope)
+            arg_tys.append(arg_ty)
 
         for arg_ty, param_ty in zip(arg_tys, function_ty.param_tys):
-            if not arg_ty.isSubClassOf(param_ty):
-                print("type mismatch")
+            if not arg_ty.isSubclassOf(param_ty):
+                print("type mismatch dispatch")
                 exit()
 
-        if function_ty.ret_ty == SelfType:
-            return classType
+        if isinstance(function_ty.ret_ty,SelfType):
+            return None, classType
 
         return None, function_ty.ret_ty
 
@@ -299,7 +302,7 @@ class MethodCall(Expr):
 
 
         if not isinstance(method_ty, FuncType):
-            print("type mismatch")
+            print("type mismatch method call 1")
             exit()
 
         arg_tys = []
@@ -309,7 +312,7 @@ class MethodCall(Expr):
 
         for arg_ty, formal_ty in zip(arg_tys, method_ty.param_tys):
             if not arg_ty.isSubclassOf(formal_ty):
-                print("type mismatch here")
+                print("type mismatch method call 2")
                 exit()
 
         return None, method_ty.ret_ty
@@ -330,12 +333,14 @@ class If(Expr):
 
     def typecheck(self, scope):
 
-        if not isinstance(self.cnd.typecheck(scope), BooleanType):
-            print("type mismatch")
+        _, cnd_ty = self.cnd.typecheck(scope)
+
+        if not isinstance(cnd_ty, BooleanType):
+            print("type mismatch if")
             exit()
 
-        thn_ty = self.thn.typecheck(scope)
-        els_ty = self.els.typecheck(scope)
+        _, thn_ty = self.thn.typecheck(scope)
+        _, els_ty = self.els.typecheck(scope)
 
         mutual = thn_ty.mutualParentOfTwo(els_ty)
 
@@ -367,7 +372,7 @@ class While(Expr):
 
         self.bodyExpr.typecheck(scope)
 
-        return None, GLOBAL.ObjectType
+        return None, GLOBAL.objectType
 
 
 class Block(Expr):
@@ -505,9 +510,9 @@ class NewConstruct(Expr):
 
     def typecheck(self, scope: Scope):
         if self.objType == 'self':
-            return scope, SelfType
+            return None, SelfType()
 
-        ty = scope.lookup(self.objType)
+        ty = scope.lookupType(self.objType)
 
         return None, ty
 
@@ -539,7 +544,7 @@ class BinaryOp(Expr):
         _, ty2 = self.e2.typecheck(scope)
 
         if not isinstance(ty1, IntegerType) and not isinstance(ty2, IntegerType):
-            print("type mismatch")
+            print("type mismatch binaryop")
             exit()
 
         if isinstance(self, (Plus, Minus, Multiply, Divide)):
@@ -639,21 +644,21 @@ class Eq(BinaryOp):
 
         if isinstance(ty1, IntegerType) and not isinstance(ty2, IntegerType) \
            or not isinstance(ty1, IntegerType) and isinstance(ty2, IntegerType):
-            print("type mismatch")
+            print("type mismatch Eq1")
             exit()
 
         if isinstance(ty1, BooleanType) and not isinstance(ty2, BooleanType) \
            or not isinstance(ty1, BooleanType) and isinstance(ty2, BooleanType):
-            print("type mismatch")
+            print("type mismatch Eq2")
             exit()
 
         if isinstance(ty1, StringType) and not isinstance(ty2, StringType) \
            or not isinstance(ty1, StringType) and isinstance(ty2, StringType):
-            print("type mismatch")
+            print("type mismatch Eq3")
             exit()
 
         if not type(ty1) == type(ty2):
-            print("type mismatch")
+            print("type mismatch eq4")
             exit()
 
         return None, BooleanType()
@@ -760,7 +765,7 @@ class Self(Expr):
         return "self"
 
     def typecheck(self, scope):
-        return None, SelfType
+        return None, SelfType()
 
 
 class Id(Expr):
@@ -801,13 +806,13 @@ class Neg(Expr):
         self.expr = expr
 
     def typecheck(self, scope):
-        ty = self.expr.typecheck(scope)
+        _, ty = self.expr.typecheck(scope)
 
-        if not isinstance(ty, Integer):
+        if not isinstance(ty, IntegerType):
             print("neg type mismatch")
             exit()
 
-        return None, IntegerType
+        return None, IntegerType()
 
 
 
@@ -821,7 +826,7 @@ if __name__ == "__main__":
     parser = make_parser() 
 
 
-    with open("Tests/helloworld.cl") as file:
+    with open("Tests/arith.cl") as file:
             cool_program_code = file.read()
 
     parse_result = parser.parse(cool_program_code)

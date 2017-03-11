@@ -107,10 +107,7 @@ class FeatureMethodDecl(Feature):
         self.bodyExpr = bodyExpr
 
     def __str__(self):
-        if len(self.formalParams) == 1 and self.formalParams[0] == None:
-            params = ""
-        else:
-            params = ", ".join([str(f) for f in self.formalParams])
+        params = ", ".join([str(f) for f in self.formalParams])
 
         return "{}({}) : {} {{\n\t {} }};".format(str(self.methodName), params, str(self.retType), str(self.bodyExpr))
 
@@ -205,10 +202,7 @@ class Dispatch(Expr):
         self.parent = parent
 
     def __str__(self):
-        if len(self.arguments) == 1 and self.arguments[0] == None:
-            arguments = ""
-        else:
-            arguments = ", ".join([str(arg) for arg in self.arguments])
+        arguments = ", ".join([str(arg) for arg in self.arguments])
 
         if self.parent:
             return "{}@{}.{}({})".format(str(self.objExpr), str(self.parent), str(self.methodName), arguments)

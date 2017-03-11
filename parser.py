@@ -92,8 +92,6 @@ class Parser(object):
         if len(p) == 3:
             p[1].append(p[2])
             p[0] = p[1]
-        # elif len(p) == 2:
-        #     p[0] = [p[1]]
         else:
             p[0] = []
     
@@ -130,7 +128,7 @@ class Parser(object):
         if len(p) == 4:
             p[1].append(p[3])
             p[0] = p[1]
-        elif len(p) == 2:
+        elif len(p) == 2 and p[1]:
             p[0] = [p[1]]
         else:
             p[0] = []
@@ -173,7 +171,7 @@ class Parser(object):
         if len(p) == 4:
             p[1].append(p[3])
             p[0] = p[1]
-        elif len(p) == 2:
+        elif len(p) == 2 and p[1]:
             p[0] = [p[1]]
         else:
             p[0] = []
@@ -212,8 +210,6 @@ class Parser(object):
             p[0] = p[1]
         elif len(p) == 3:
             p[0] = [p[1]]
-        else:
-            p[0] = []
     
     def p_expression_let(self, p):
         """

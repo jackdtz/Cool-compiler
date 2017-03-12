@@ -4,6 +4,7 @@ from utils import *
 from typing import List
 import cool_global as GLOBAL
 
+
 class Node(object):
 
     ops = [
@@ -12,13 +13,13 @@ class Node(object):
         "<", "<=",
         ">", ">="
     ]
-    
+
     topScope = Scope(enclosingClass=GLOBAL.topLevelClass, parent=None)
 
     def __init__(self):
         pass
 
-    def getType(self, scope:'Scope', type_str: str) -> Type:
+    def getType(self, scope: 'Scope', type_str: str) -> Type:
         if type_str == 'Int':
             return GLOBAL.integerType
         elif type_str == 'String':
@@ -55,8 +56,9 @@ class Program(Node):
 
             classType = ClassType(parent=parentClassType)
             classScope = Scope(parent=scope)
-            classScope.enclosingClass = classType 
-            classScope.inheritClassScope = scope.findScopeByType(self.topScope, parentClassType)
+            classScope.enclosingClass = classType
+            classScope.inheritClassScope = scope.findScopeByType(
+                self.topScope, parentClassType)
             scope.add(c.className, classScope, classType)
 
         for c in self.classes:
@@ -72,11 +74,11 @@ class Program(Node):
                     methodScope.enclosingClass = classType
                     methodScope.inheritClassScope = classScope.inheritClassScope
 
-                    formal_tys = [self.getType(classScope, formal.decType) for formal in feature.formalParams]
+                    formal_tys = [self.getType(
+                        classScope, formal.decType) for formal in feature.formalParams]
                     ret_ty = self.getType(classScope, feature.retType)
                     methodType = FuncType(formal_tys, ret_ty)
                     classScope.add(feature.methodName, methodScope, methodType)
-
 
     def typecheck(self):
         topScope = Node.topScope
@@ -150,9 +152,6 @@ class FeatureMethodDecl(Feature):
 
     def typecheck(self, scope: Scope):
 
-        if self.methodName == "a2i_aux":
-            print("stop here")
-
         functionType = scope.lookupType(self.methodName)
         formal_tys = functionType.param_tys
         ret_ty = functionType.ret_ty
@@ -162,7 +161,7 @@ class FeatureMethodDecl(Feature):
             newscope.add(formal.id, None, formal_ty)
 
         _, ty = self.bodyExpr.typecheck(newscope)
-        
+
         if isinstance(ty, SelfType):
             ty = scope.enclosingClass
 
@@ -269,10 +268,12 @@ class Dispatch(Expr):
 
         if self.dispatchedClassName:
             dispatchedClassType = self.getType(scope, self.dispatchedClassName)
-            dispatchedClassScope = scope.findScopeByType(self.topScope, dispatchedClassType)
+            dispatchedClassScope = scope.findScopeByType(
+                self.topScope, dispatchedClassType)
         else:
             dispatchedClassType = classType
-            dispatchedClassScope = scope.findScopeByType(self.topScope, classType)
+            dispatchedClassScope = scope.findScopeByType(
+                self.topScope, classType)
 
         if not classType.isSubclassOf(dispatchedClassType):
             print("Type mismatch")
@@ -294,7 +295,7 @@ class Dispatch(Expr):
                 print("type mismatch dispatch")
                 exit()
 
-        if isinstance(function_ty.ret_ty,SelfType):
+        if isinstance(function_ty.ret_ty, SelfType):
             return None, classType
 
         return None, function_ty.ret_ty
@@ -320,7 +321,6 @@ class MethodCall(Expr):
             print("method {} is not defined".format(self.id))
             exit()
 
-
         if not isinstance(method_ty, FuncType):
             print("type mismatch method call 1")
             exit()
@@ -334,6 +334,9 @@ class MethodCall(Expr):
             if not arg_ty.isSubclassOf(formal_ty):
                 print("type mismatch method call 2")
                 exit()
+
+        if isinstance(method_ty.ret_ty, SelfType):
+            return None, scope.enclosingClass
 
         return None, method_ty.ret_ty
 
@@ -461,10 +464,8 @@ class Let(Expr):
             for id, val, ty in letVarDecls:
                 scope.add(id, val, ty)
 
-
-       
-            
         return self.bodyExpr.typecheck(scope)
+
 
 class CaseAction(Node):
     """
@@ -500,14 +501,15 @@ class Case(Expr):
         _, cnd_ty = self.cond.typecheck(scope)
 
         action_tys = []
+        copiedScope = scope.copy()
 
         for action in self.actions:
-            copiedScope = scope.copy()
             action_id_ty = self.getType(scope, action.defType)
             copiedScope.add(action.id, None, action_id_ty)
             _, body_ty = action.body.typecheck(copiedScope)
+            copiedScope.delete(action.id)
 
-            if not type(action_id_ty) == type(body_ty):
+            if not body_ty.isSubclassOf(action_id_ty):
                 print("case action type mismatch")
                 exit()
 
@@ -575,8 +577,6 @@ class BinaryOp(Expr):
             return None, GLOBAL.integerType
 
         return None, GLOBAL.booleanType
-
-
 
 
 class Plus(BinaryOp):
@@ -838,16 +838,16 @@ class Neg(Expr):
         return None, GLOBAL.integerType
 
 
-
 if __name__ == "__main__":
-    import sys, os, glob
+    import sys
+    import os
+    import glob
     from parser import make_parser
 
     root_path = '/Users/Jack/Documents/programming/python/coolCompiler'
-    test_folder = root_path + '/Tests'       
+    test_folder = root_path + '/Tests'
 
-    parser = make_parser() 
-
+    parser = make_parser()
 
     with open("Tests/arith.cl") as file:
             cool_program_code = file.read()

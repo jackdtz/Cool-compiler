@@ -59,6 +59,8 @@ class Type(object):
         for i in range(len(tys) - 1):
             t = t.mutualParentOfTwo(tys[i + 1])
 
+        return t
+
 
 class ObjectType(Type):
     pass

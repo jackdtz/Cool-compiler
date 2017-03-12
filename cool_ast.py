@@ -12,6 +12,8 @@ class Node(object):
         "<", "<=",
         ">", ">="
     ]
+    
+    topScope = Scope(enclosingClass=GLOBAL.topLevelClass, parent=None)
 
     def __init__(self):
         pass
@@ -54,9 +56,13 @@ class Program(Node):
             classType = ClassType(parent=parentClassType)
             classScope = Scope(parent=scope)
             classScope.enclosingClass = classType 
-            classScope.inheritClassScope = scope.findScopeByType(parentClassType)
+            classScope.inheritClassScope = scope.findScopeByType(self.topScope, parentClassType)
             scope.add(c.className, classScope, classType)
 
+        for c in self.classes:
+
+            classScope = scope.lookupLocal(c.className)
+            classType = scope.lookupLocalType(c.className)
             for feature in c.features:
                 if isinstance(feature, FeatureAttribute):
                     decClassType = self.getType(classScope, feature.decType)
@@ -66,14 +72,14 @@ class Program(Node):
                     methodScope.enclosingClass = classType
                     methodScope.inheritClassScope = classScope.inheritClassScope
 
-                    formal_tys = [self.getType(classScope, formal) for formal in feature.formalParams]
+                    formal_tys = [self.getType(classScope, formal.decType) for formal in feature.formalParams]
                     ret_ty = self.getType(classScope, feature.retType)
                     methodType = FuncType(formal_tys, ret_ty)
                     classScope.add(feature.methodName, methodScope, methodType)
 
 
     def typecheck(self):
-        topScope = Scope(enclosingClass=GLOBAL.topLevelClass, parent=None)
+        topScope = Node.topScope
         Scope.initTopScope(topScope)
 
         self.preprocess(topScope)
@@ -143,6 +149,9 @@ class FeatureMethodDecl(Feature):
         return "{}({}) : {} {{\n\t {} }};".format(str(self.methodName), params, str(self.retType), str(self.bodyExpr))
 
     def typecheck(self, scope: Scope):
+
+        if self.methodName == "a2i_aux":
+            print("stop here")
 
         functionType = scope.lookupType(self.methodName)
         formal_tys = functionType.param_tys
@@ -260,17 +269,16 @@ class Dispatch(Expr):
 
         if self.dispatchedClassName:
             dispatchedClassType = self.getType(scope, self.dispatchedClassName)
-            dispatchedClassScope = scope.findScopeByType(dispatchedClassType)
+            dispatchedClassScope = scope.findScopeByType(self.topScope, dispatchedClassType)
         else:
             dispatchedClassType = classType
-            dispatchedClassScope = scope.findScopeByType(classType)
+            dispatchedClassScope = scope.findScopeByType(self.topScope, classType)
 
         if not classType.isSubclassOf(dispatchedClassType):
             print("Type mismatch")
             exit()
 
-
-        function_ty = dispatchedClassScope.lookupLocalType(self.methodName)
+        function_ty = dispatchedClassScope.lookupType(self.methodName)
 
         if not function_ty:
             print("dispatch method name {} is not defined".format(self.methodName))
@@ -792,8 +800,6 @@ class Id(Expr):
         return str(self.id)
 
     def typecheck(self, scope: Scope):
-        print(self.id)
-
         ty = scope.lookupType(self.id)
 
         return None, ty

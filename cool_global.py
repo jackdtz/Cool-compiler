@@ -4,9 +4,9 @@ from cool_types import StringType, BooleanType, IntegerType
 from scope import *
 
 objectType = ObjectType()
-stringType = StringType()
-integerType = IntegerType()
-booleanType = BooleanType()
+stringType = StringType(parent=objectType)
+integerType = IntegerType(parent=objectType)
+booleanType = BooleanType(parent=objectType)
 selfType = SelfType()
 
 topLevelClass = TopLevelClass()

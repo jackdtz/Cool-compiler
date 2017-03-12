@@ -40,7 +40,7 @@ class Scope(object):
         """
         return either None or the type associated to key
         """
-        return self.lookupProperty(key, 'type')
+        return self.lookupPropertyLocal(key, 'type')
 
     def lookupPropertyLocal(self, key, kind):
         val = self.table.get(key, None)
@@ -93,6 +93,8 @@ class Scope(object):
         s = self
         while s.enclosingClass != GLOBAL.topLevelClass:
             s = s.parent
+            if not s:
+                print("haha")
         return s
             
 
@@ -134,11 +136,9 @@ class Scope(object):
         string_scope.add('length', None, FuncType([], GLOBAL.integerType))
         string_scope.add('concat', None, FuncType([GLOBAL.stringType], GLOBAL.stringType))
         string_scope.add('substr', None, FuncType([GLOBAL.integerType, GLOBAL.integerType], GLOBAL.stringType))
-        scope.add('String', string_scope, StringType(parent=GLOBAL.objectType))
+        scope.add('String', string_scope, GLOBAL.stringType)
 
-    def findScopeByType(self, ty: 'Type') -> 'Scope':
-        topScope = self.getTopLevelScope()
-
+    def findScopeByType(self, topScope: 'Scope', ty: 'Type') -> 'Scope':
         for k, v in topScope.table.items():
             if v['type'] == ty:
                 return v['value'] 

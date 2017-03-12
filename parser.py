@@ -154,7 +154,7 @@ class Parser(object):
         if len(p) == 7:
             p[0] = Dispatch(p[1], p[3], p[5])
         else:
-            p[0] = Dispatch(p[1], p[5], p[7], parent=p[3])
+            p[0] = Dispatch(p[1], p[5], p[7], dispatchedClassName=p[3])
     
     def p_expression_method_call(self, p):
         """

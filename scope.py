@@ -13,7 +13,7 @@ class Scope(object):
     def __init__(self, enclosingClass: Type=None, parent: Type=None):
         self.parent = parent
         self.enclosingClass = enclosingClass
-        self.parentClassScope = None
+        self.inheritClassScope = None
         self.table = {}
 
     def copy(self) -> 'Scope':
@@ -67,8 +67,8 @@ class Scope(object):
         if val:
             return val
 
-        if self.parentClassScope:
-            return self.parentClassScope.lookupProperty(key, kind)
+        if self.inheritClassScope:
+            return self.inheritClassScope.lookupProperty(key, kind)
 
         return None
 
@@ -88,12 +88,18 @@ class Scope(object):
             s = s.parent
 
         return s
+
+    def getTopLevelScope(self) -> 'Scope':
+        s = self
+        while s.enclosingClass != GLOBAL.topLevelClass:
+            s = s.parent
+        return s
             
 
 
     def openscope(self, name : str, ty : 'Type', selfclass=None):
         newscope = Scope(parent=self)
-        newscope.parentClassScope = self.parentClassScope
+        newscope.inheritClassScope = self.inheritClassScope
         if not selfclass:
             newscope.enclosingClass = self.enclosingClass
         else:
@@ -112,21 +118,31 @@ class Scope(object):
     @staticmethod
     def initTopScope(scope):
         io_scope = Scope(parent=scope)
-        io_scope.add('out_string', None, FuncType([StringType()], SelfType()))
-        io_scope.add('out_int', None, FuncType([IntegerType()], SelfType()))
-        io_scope.add('in_string', None, FuncType([], StringType()))
-        io_scope.add('in_int', None, FuncType([], IntegerType()))
+        io_scope.add('out_string', None, FuncType([GLOBAL.stringType], GLOBAL.selfType))
+        io_scope.add('out_int', None, FuncType([GLOBAL.integerType], GLOBAL.selfType))
+        io_scope.add('in_string', None, FuncType([], GLOBAL.stringType))
+        io_scope.add('in_int', None, FuncType([], GLOBAL.integerType))
         scope.add('IO', io_scope, ClassType(parent=GLOBAL.objectType))
 
         object_scope = Scope(parent=scope)
-        object_scope.add('abort', None, GLOBAL.objectType)
-        object_scope.add('type_name', None, StringType())
-        object_scope.add('copy', None, SelfType())
+        object_scope.add('abort', None, FuncType([], GLOBAL.objectType))
+        object_scope.add('type_name', None, FuncType([], GLOBAL.stringType))
+        object_scope.add('copy', None, FuncType([], GLOBAL.selfType))
         scope.add('Object', object_scope, GLOBAL.objectType)
 
         string_scope = Scope(parent=scope)
-        string_scope.add('length', None, FuncType([], IntegerType()))
-        string_scope.add('concat', None, FuncType([StringType()], StringType()))
-        string_scope.add('substr', None, FuncType([IntegerType(), IntegerType()], StringType()))
-        scope.add('String', object_scope, StringType(parent=GLOBAL.objectType))
+        string_scope.add('length', None, FuncType([], GLOBAL.integerType))
+        string_scope.add('concat', None, FuncType([GLOBAL.stringType], GLOBAL.stringType))
+        string_scope.add('substr', None, FuncType([GLOBAL.integerType, GLOBAL.integerType], GLOBAL.stringType))
+        scope.add('String', string_scope, StringType(parent=GLOBAL.objectType))
+
+    def findScopeByType(self, ty: 'Type') -> 'Scope':
+        topScope = self.getTopLevelScope()
+
+        for k, v in topScope.table.items():
+            if v['type'] == ty:
+                return v['value'] 
+
+        return None
+
 

@@ -27,6 +27,9 @@ class Type(object):
         if not ty1 or not ty2:
             return None
 
+        if ty1 == ty2 or type(ty1) == type(ty2):
+            return ty1
+
         l1 = ty1.lengthToRoot()
         l2 = ty2.lengthToRoot()
 
@@ -41,11 +44,11 @@ class Type(object):
                 ty2 = ty2.parent
                 count -= 1
 
-        while type(ty1) != type(ty2):
+        while ty1 != ty2:
             ty1 = ty1.parent
             ty2 = ty2.parent
 
-        if type(ty1) == type(ty2):
+        if ty1 == ty2:
             return ty1
 
         return None

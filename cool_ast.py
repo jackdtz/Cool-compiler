@@ -445,18 +445,22 @@ class Let(Expr):
     def typecheck(self, scope):
 
         letVarDecls = []
-
         for decl in self.declareVars:
-            copiedScope = scope.copy()
-            decType = self.getType(copiedScope, decl.decType)
+            decType = self.getType(scope, decl.decType)
             if decl.init:
-                decInitVal, decInitType = decl.init.typecheck(copiedScope)
+                decInitVal, decInitType = decl.init.typecheck(scope)
                 if not decInitType.isSubclassOf(decType):
                     print("type mismatch at let declaration")
                     exit()
-                scope.add(decl.id, decInitVal, decInitType)
+                letVarDecls.append((decl.id, decInitVal, decInitType))
+                # scope.add(decl.id, decInitVal, decInitType)
             else:
-                scope.add(decl.id, None, decType)
+                # scope.add(decl.id, None, decType)
+                letVarDecls.append((decl.id, None, decType))
+
+            for id, val, ty in letVarDecls:
+                scope.add(id, val, ty)
+
 
        
             
@@ -499,7 +503,7 @@ class Case(Expr):
 
         for action in self.actions:
             copiedScope = scope.copy()
-            action_id_ty = scope.getType(action.defType)
+            action_id_ty = self.getType(scope, action.defType)
             copiedScope.add(action.id, None, action_id_ty)
             _, body_ty = action.body.typecheck(copiedScope)
 

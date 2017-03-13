@@ -1,6 +1,4 @@
-from utils import *
 from typing import List
-
 
 class Type(object):
     def __init__(self, parent: 'Type'=None):

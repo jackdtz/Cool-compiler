@@ -1,19 +1,10 @@
 from scope import *
 from cool_types import *
-from utils import *
 from typing import List
 import cool_global as GLOBAL
 
 
 class Node(object):
-
-    # ops = [
-    #     "+", "-", "*", "/",
-    #     "~", "=",
-    #     "<", "<=",
-    #     ">", ">="
-    # ]
-
     topScope = Scope(enclosingClass=GLOBAL.topLevelClass, parent=None)
 
     def __init__(self):
@@ -30,10 +21,6 @@ class Node(object):
             return scope.enclosingClass
         else:
             return scope.lookupType(type_str)
-
-    @staticmethod
-    def fold_left_op(scope: Scope, c: 'Node'):
-        return c.typecheck(scope)
 
 
 class Program(Node):
@@ -57,9 +44,12 @@ class Program(Node):
 
             if c.inheritType:
                 parentClassType = self.getType(scope, c.inheritType)
+                if not parentClassType:
+                    print("class {} is not defined".format(str(c.inheritType)))
+                    exit()
             else:
                 parentClassType = GLOBAL.objectType
-            
+
             classScope = scope.lookupLocal(c.className)
             classType = scope.lookupLocalType(c.className)
             classType.parent = parentClassType
@@ -123,7 +113,6 @@ class Class(Node):
             inheritClassScope = topScope.getDefiningScope('Object')
 
         newscope = topScope.getDefiningScope(self.className)
-        # newscope.inheritClassScope = inheritClassScope
 
         for feature in self.features:
             _, ty = feature.typecheck(newscope)
@@ -434,7 +423,9 @@ class LetVarDecl(Node):
         self.init = init
 
     def __str__(self):
-        return "{} : {} <- {}".format(str(self.id), str(self.decType), str(self.init))
+        s1 = "{} : {}".format(str(self.id), str(self.decType), str(self.init))
+        s2 = " <- {}".format(str(self.init)) if self.init else ""
+        return s1 + s2
 
 
 class Let(Expr):
@@ -460,9 +451,7 @@ class Let(Expr):
                     print("type mismatch at let declaration")
                     exit()
                 letVarDecls.append((decl.id, decInitVal, decInitType))
-                # scope.add(decl.id, decInitVal, decInitType)
             else:
-                # scope.add(decl.id, None, decType)
                 letVarDecls.append((decl.id, None, decType))
 
             for id, val, ty in letVarDecls:
@@ -521,7 +510,7 @@ class Case(Expr):
         for action_id, action_ty in action_ids_tys:
             scope.add(action_id, None, action_ty)
 
-        action_tys = [action_id_ty[1] for action_id_ty in action_ids_tys]            
+        action_tys = [action_id_ty[1] for action_id_ty in action_ids_tys]
 
         ret_ty = Type.mutualParentOfAll(action_tys)
 
@@ -676,7 +665,7 @@ class Eq(BinaryOp):
 
         if ty1 == GLOBAL.selfType:
             ty1 = scope.enclosingClass
-        
+
         if ty2 == GLOBAL.selfType:
             ty2 = scope.enclosingClass
 
@@ -806,7 +795,6 @@ class Self(Expr):
         return None, scope.enclosingClass
 
 
-
 class Id(Expr):
     """
     expr ::= ID
@@ -843,6 +831,9 @@ class Neg(Expr):
     def __init__(self, expr):
         self.expr = expr
 
+    def __str__(self):
+        return "~{}".format(str(self.expr))
+
     def typecheck(self, scope):
         _, ty = self.expr.typecheck(scope)
 
@@ -851,6 +842,7 @@ class Neg(Expr):
             exit()
 
         return None, GLOBAL.integerType
+
 
 
 if __name__ == "__main__":
@@ -864,8 +856,10 @@ if __name__ == "__main__":
 
     parser = make_parser()
 
-    with open("Tests/lam.cl") as file:
+    with open("Tests/hello_world.cl") as file:
             cool_program_code = file.read()
 
     parse_result = parser.parse(cool_program_code)
-    print(parse_result.typecheck())
+    ret = parse_result.typecheck()
+    if ret:
+        print("successful")

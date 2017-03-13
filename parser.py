@@ -34,7 +34,7 @@ class Parser(object):
         if last_cr < 0:
             last_cr = 0
 
-        return token.lexpos - lenclosingClass_cr + 1
+        return token.lexpos - last_cr + 1
 
     def build(self):
         self.tokens = self.lexer.tokens

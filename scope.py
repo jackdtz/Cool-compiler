@@ -7,7 +7,6 @@ import cool_global as GLOBAL
 
 class Scope(object):
     """
-    each scope in a hash table
     """
 
     def __init__(self, enclosingClass: Type=None, parent: Type=None):

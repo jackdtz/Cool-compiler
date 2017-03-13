@@ -17,4 +17,5 @@ if __name__ == "__main__":
             with open(file_path, encoding='utf-8') as file:
                 cool_program_code = file.read()
                 parse_result = parser.parse(cool_program_code)
-                parse_result.typecheck()
+                if parse_result.typecheck():
+                    print("successful")

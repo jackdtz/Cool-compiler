@@ -34,7 +34,7 @@ class Scanner(object):
     def build(self):
         self.tokens = self.token_types + tuple(self.reserved_keywords.values())
 
-        lexer = lex.lex(module=self)
+        lexer = lex.lex(object=self)
         return lexer
 
     @property

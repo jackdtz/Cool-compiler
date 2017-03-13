@@ -2,6 +2,7 @@ from scope import *
 from cool_types import *
 from typing import List
 import cool_global as GLOBAL
+from random import randint
 
 
 class Node(object):
@@ -21,6 +22,17 @@ class Node(object):
             return scope.enclosingClass
         else:
             return scope.lookupType(type_str)
+
+    def getInitByType(self, decType):
+        if decType == GLOBAL.integerType:
+            return 0
+        elif decType == GLOBAL.stringType:
+            return ""
+        elif decType == GLOBAL.booleanType:
+            return False
+        else:
+            return GLOBAL.voidType
+
 
 
 class Program(Node):
@@ -404,6 +416,7 @@ class Block(Expr):
 
     def typecheck(self, scope):
 
+
         for i in range(len(self.exprs) - 1):
             self.exprs[i].typecheck(scope)
 
@@ -442,6 +455,11 @@ class Let(Expr):
 
     def typecheck(self, scope):
 
+        let_scope = Scope(parent=scope)
+        let_scope.enclosingClass = scope.enclosingClass
+        let_scope.inheritClassScope = scope.inheritClassScope
+        scope.add('let' + str(randint(0, 10000)), let_scope, None)
+
         letVarDecls = []
         for decl in self.declareVars:
             decType = self.getType(scope, decl.decType)
@@ -452,12 +470,13 @@ class Let(Expr):
                     exit()
                 letVarDecls.append((decl.id, decInitVal, decInitType))
             else:
-                letVarDecls.append((decl.id, None, decType))
+                initVal = self.getInitByType(decType)
+                letVarDecls.append((decl.id, initVal, decType))
 
             for id, val, ty in letVarDecls:
-                scope.add(id, val, ty)
+                let_scope.add(id, val, ty)
 
-        return self.bodyExpr.typecheck(scope)
+        return self.bodyExpr.typecheck(let_scope)
 
 
 class CaseAction(Node):
@@ -856,7 +875,7 @@ if __name__ == "__main__":
 
     parser = make_parser()
 
-    with open("Tests/hello_world.cl") as file:
+    with open("Tests/let.cl") as file:
             cool_program_code = file.read()
 
     parse_result = parser.parse(cool_program_code)

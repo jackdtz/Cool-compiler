@@ -11,7 +11,7 @@ class Scope(object):
     """
 
     def __init__(self, enclosingClass: Type=None, parent: Type=None):
-        self.parent = parent
+        self.parentScope = parent
         self.enclosingClass = enclosingClass
         self.inheritClassScope = None
         self.table = {}
@@ -63,8 +63,8 @@ class Scope(object):
             return val
 
         s = self
-        while s.parent and not val:
-            s = s.parent
+        while s.parentScope and not val:
+            s = s.parentScope
             val = s.lookupPropertyLocal(key, kind)
 
         if val:
@@ -80,22 +80,22 @@ class Scope(object):
 
         if ret:
             return ret['value']
-        elif self.parent:
-            return self.parent.getDefiningScope(name)
+        elif self.parentScope:
+            return self.parentScope.getDefiningScope(name)
         else:
             return None
 
     def getEnclosingClassScope(self) -> 'Scope':
         s = self
-        while s.parent.enclosingClass != GLOBAL.topLevelClass:
-            s = s.parent
+        while s.parentScope.enclosingClass != GLOBAL.topLevelClass:
+            s = s.parentScope
 
         return s
 
     def getTopLevelScope(self) -> 'Scope':
         s = self
         while s.enclosingClass != GLOBAL.topLevelClass:
-            s = s.parent
+            s = s.parentScope
         return s
 
     def openscope(self, name: str, ty: 'Type', selfclass=None):
@@ -114,7 +114,7 @@ class Scope(object):
         return newscope
 
     def leavescope(self):
-        return self.parent
+        return self.parentScope
 
     @staticmethod
     def initTopScope(scope):
@@ -143,7 +143,7 @@ class Scope(object):
             [GLOBAL.integerType], GLOBAL.selfType))
         io_scope.add('in_string', None, FuncType([], GLOBAL.stringType))
         io_scope.add('in_int', None, FuncType([], GLOBAL.integerType))
-        scope.add('IO', io_scope, ClassType(parent=GLOBAL.objectType))
+        scope.add('IO', io_scope, ClassType("IO", parent=GLOBAL.objectType))
 
         boolean_scope = Scope(parent=scope)
         boolean_scope.inheritClassScope = object_scope

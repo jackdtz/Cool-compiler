@@ -7,12 +7,12 @@ import cool_global as GLOBAL
 
 class Node(object):
 
-    ops = [
-        "+", "-", "*", "/",
-        "~", "=",
-        "<", "<=",
-        ">", ">="
-    ]
+    # ops = [
+    #     "+", "-", "*", "/",
+    #     "~", "=",
+    #     "<", "<=",
+    #     ">", ">="
+    # ]
 
     topScope = Scope(enclosingClass=GLOBAL.topLevelClass, parent=None)
 
@@ -49,22 +49,24 @@ class Program(Node):
 
     def preprocess(self, scope):
         for c in self.classes:
-            if c.inheritType:
-                parentClassType = self.getType(scope, c.inheritType)
-            else:
-                parentClassType = GLOBAL.objectType
-
-            classType = ClassType(parent=parentClassType)
+            classType = ClassType(c.className)
             classScope = Scope(parent=scope)
-            classScope.enclosingClass = classType
-            classScope.inheritClassScope = scope.findScopeByType(
-                self.topScope, parentClassType)
             scope.add(c.className, classScope, classType)
 
         for c in self.classes:
 
+            if c.inheritType:
+                parentClassType = self.getType(scope, c.inheritType)
+            else:
+                parentClassType = GLOBAL.objectType
+            
             classScope = scope.lookupLocal(c.className)
             classType = scope.lookupLocalType(c.className)
+            classType.parent = parentClassType
+            classScope.enclosingClass = classType
+            classScope.inheritClassScope = scope.findScopeByType(
+                self.topScope, parentClassType)
+
             for feature in c.features:
                 if isinstance(feature, FeatureAttribute):
                     decClassType = self.getType(classScope, feature.decType)
@@ -454,8 +456,6 @@ class Let(Expr):
             decType = self.getType(scope, decl.decType)
             if decl.init:
                 decInitVal, decInitType = decl.init.typecheck(scope)
-                if not decInitType:
-                    print("strop here")
                 if not decInitType.isSubclassOf(decType):
                     print("type mismatch at let declaration")
                     exit()
@@ -504,20 +504,24 @@ class Case(Expr):
     def typecheck(self, scope):
         _, cnd_ty = self.cond.typecheck(scope)
 
-        action_tys = []
-        copiedScope = scope.copy()
+        action_ids_tys = []
 
         for action in self.actions:
             action_id_ty = self.getType(scope, action.defType)
-            copiedScope.add(action.id, None, action_id_ty)
-            _, body_ty = action.body.typecheck(copiedScope)
-            copiedScope.delete(action.id)
+            scope.add(action.id, None, action_id_ty)
+            _, body_ty = action.body.typecheck(scope)
+            scope.delete(action.id)
 
             if not body_ty.isSubclassOf(action_id_ty):
                 print("case action type mismatch")
                 exit()
 
-            action_tys.append(body_ty)
+            action_ids_tys.append((action.id, body_ty))
+
+        for action_id, action_ty in action_ids_tys:
+            scope.add(action_id, None, action_ty)
+
+        action_tys = [action_id_ty[1] for action_id_ty in action_ids_tys]            
 
         ret_ty = Type.mutualParentOfAll(action_tys)
 
@@ -540,7 +544,7 @@ class NewConstruct(Expr):
 
     def typecheck(self, scope: Scope):
         if self.objType == 'self':
-            return None, GLOBAL.selfType
+            return None, scope.enclosingClass
 
         ty = scope.lookupType(self.objType)
 
@@ -670,6 +674,12 @@ class Eq(BinaryOp):
         _, ty1 = self.e1.typecheck(scope)
         _, ty2 = self.e2.typecheck(scope)
 
+        if ty1 == GLOBAL.selfType:
+            ty1 = scope.enclosingClass
+        
+        if ty2 == GLOBAL.selfType:
+            ty2 = scope.enclosingClass
+
         if isinstance(ty1, IntegerType) and not isinstance(ty2, IntegerType) \
            or not isinstance(ty1, IntegerType) and isinstance(ty2, IntegerType):
             print("type mismatch Eq1")
@@ -793,7 +803,8 @@ class Self(Expr):
         return "self"
 
     def typecheck(self, scope):
-        return None, GLOBAL.selfType
+        return None, scope.enclosingClass
+
 
 
 class Id(Expr):
@@ -853,7 +864,7 @@ if __name__ == "__main__":
 
     parser = make_parser()
 
-    with open("Tests/hairyscary.cl") as file:
+    with open("Tests/lam.cl") as file:
             cool_program_code = file.read()
 
     parse_result = parser.parse(cool_program_code)

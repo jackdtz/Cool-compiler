@@ -94,7 +94,9 @@ class SelfType(Type):
 
 
 class ClassType(Type):
-    pass
+    def __init__(self, name: str, parent=None):
+        super().__init__(parent=parent)
+        self.name = name
 
 
 

@@ -9,4 +9,4 @@ integerType = IntegerType(parent=objectType)
 booleanType = BooleanType(parent=objectType)
 selfType = SelfType()
 
-topLevelClass = TopLevelClass()
+topLevelClass = TopLevelClass("topLevel")

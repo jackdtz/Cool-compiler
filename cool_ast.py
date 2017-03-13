@@ -121,7 +121,7 @@ class Class(Node):
             inheritClassScope = topScope.getDefiningScope('Object')
 
         newscope = topScope.getDefiningScope(self.className)
-        newscope.inheritClassScope = inheritClassScope
+        # newscope.inheritClassScope = inheritClassScope
 
         for feature in self.features:
             _, ty = feature.typecheck(newscope)
@@ -288,6 +288,8 @@ class Dispatch(Expr):
         arg_tys = []
         for arg in self.arguments:
             _, arg_ty = arg.typecheck(scope)
+            if arg_ty == GLOBAL.selfType:
+                arg_ty = scope.enclosingClass
             arg_tys.append(arg_ty)
 
         for arg_ty, param_ty in zip(arg_tys, function_ty.param_tys):
@@ -452,6 +454,8 @@ class Let(Expr):
             decType = self.getType(scope, decl.decType)
             if decl.init:
                 decInitVal, decInitType = decl.init.typecheck(scope)
+                if not decInitType:
+                    print("strop here")
                 if not decInitType.isSubclassOf(decType):
                     print("type mismatch at let declaration")
                     exit()
@@ -724,7 +728,7 @@ class Not(Expr):
         return "not" + str(self.expr)
 
     def typecheck(self, scope):
-        _, ty = expr.typecheck(scope)
+        _, ty = self.expr.typecheck(scope)
 
         if not isinstance(ty, BooleanType):
             print("boolena type mismatch")
@@ -849,7 +853,7 @@ if __name__ == "__main__":
 
     parser = make_parser()
 
-    with open("Tests/arith.cl") as file:
+    with open("Tests/hairyscary.cl") as file:
             cool_program_code = file.read()
 
     parse_result = parser.parse(cool_program_code)

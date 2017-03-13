@@ -145,6 +145,18 @@ class Scope(object):
         io_scope.add('in_int', None, FuncType([], GLOBAL.integerType))
         scope.add('IO', io_scope, ClassType(parent=GLOBAL.objectType))
 
+        boolean_scope = Scope(parent=scope)
+        boolean_scope.inheritClassScope = object_scope
+        boolean_scope.enclosingClass = GLOBAL.topLevelClass
+        scope.add('Bool', boolean_scope, GLOBAL.booleanType)
+
+        int_scope = Scope(parent=scope)
+        int_scope.inheritClassScope = object_scope
+        int_scope.enclosingClass = GLOBAL.topLevelClass
+        scope.add('Int', int_scope, GLOBAL.integerType)
+
+
+
     def findScopeByType(self, topScope: 'Scope', ty: 'Type') -> 'Scope':
         for k, v in topScope.table.items():
             if v['type'] == ty:

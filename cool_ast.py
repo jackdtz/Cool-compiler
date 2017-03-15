@@ -34,7 +34,6 @@ class Node(object):
             return GLOBAL.voidType
 
 
-
 class Program(Node):
     """
     program ::= [[class; ]]+
@@ -157,7 +156,7 @@ class FeatureMethodDecl(Feature):
 
         functionType = scope.lookupType(self.methodName)
         formal_tys = functionType.param_tys
-        ret_ty = functionType.ret_ty 
+        ret_ty = functionType.ret_ty
 
         newscope = scope.lookup(self.methodName)
         for formal, formal_ty in zip(self.formalParams, formal_tys):
@@ -166,8 +165,8 @@ class FeatureMethodDecl(Feature):
         _, ty = self.bodyExpr.typecheck(newscope)
 
         if ty == GLOBAL.selfType != ret_ty and not scope.enclosingClass.isSubclassOf(ret_ty) \
-            or ty != GLOBAL.selfType == ret_ty and not ty.isSubclassOf(scope.enclosingClass) \
-            or ty != GLOBAL.selfType != ret_ty and not ty.isSubclassOf(ret_ty):
+                or ty != GLOBAL.selfType == ret_ty and not ty.isSubclassOf(scope.enclosingClass) \
+                or ty != GLOBAL.selfType != ret_ty and not ty.isSubclassOf(ret_ty):
             print("method declaration type mismatch\n {}".format(str(self)))
             exit()
 
@@ -278,7 +277,8 @@ class Dispatch(Expr):
                 self.topScope, classType)
 
         if not classType.isSubclassOf(dispatchedClassType):
-            print("Type mismatch")
+            print("Type mismatch, class {} is not a subclass of {}".format(
+                str(classType.name), str(dispatchedClassType.name)))
             exit()
 
         function_ty = dispatchedClassScope.lookupType(self.methodName)
@@ -420,7 +420,6 @@ class Block(Expr):
 
     def typecheck(self, scope):
 
-
         for i in range(len(self.exprs) - 1):
             self.exprs[i].typecheck(scope)
 
@@ -470,7 +469,8 @@ class Let(Expr):
             if decl.init:
                 decInitVal, decInitType = decl.init.typecheck(scope)
                 if not decInitType.isSubclassOf(decType):
-                    print("type mismatch at let declaration")
+                    print("type mismatch at let declaration: init type {} is not a subclass of declared type {}".format(
+                        str(decInitType.name), str(decType.name)))
                     exit()
                 letVarDecls.append((decl.id, decInitVal, decType))
             else:
@@ -863,7 +863,6 @@ class Neg(Expr):
         return None, GLOBAL.integerType
 
 
-
 if __name__ == "__main__":
     import sys
     import os
@@ -875,7 +874,7 @@ if __name__ == "__main__":
 
     parser = make_parser()
 
-    with open("Tests/manual-ex1.cl") as file:
+    with open("Tests/bad2.cl") as file:
             cool_program_code = file.read()
 
     parse_result = parser.parse(cool_program_code)

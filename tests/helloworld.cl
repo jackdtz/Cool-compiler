@@ -1,7 +1,0 @@
-(* hello-world.cl *) 
-class Main inherits IO { 
-  main() : Object { 
-    out_string("Hello, world.\n") 
-    not false
-  } ; 
-} ; 

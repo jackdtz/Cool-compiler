@@ -4,9 +4,9 @@ class Type(object):
     def __init__(self, parent: 'Type'=None):
         self.parent = parent
 
-    def isSubclassOf(self, c):
+    def isSubclassOf(self, c: 'Type'):
         while self != None:
-            if type(self) == type(c):
+            if self == c:
                 return True
             self = self.parent
         return False
@@ -25,7 +25,7 @@ class Type(object):
         if not ty1 or not ty2:
             return None
 
-        if ty1 == ty2 or type(ty1) == type(ty2):
+        if ty1 == ty2:
             return ty1
 
         l1 = ty1.lengthToRoot()
@@ -103,3 +103,10 @@ class TopLevelClass(ClassType):
 
 class VoidType(Type):
     pass
+
+
+if __name__ == "__main__":
+    classA = ClassType("a")
+    classB = ClassType("b", parent=classA)
+
+    print(classB.isSubclassOf(classA))

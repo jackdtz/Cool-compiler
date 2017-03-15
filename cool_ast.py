@@ -19,7 +19,7 @@ class Node(object):
         elif type_str == 'Bool':
             return GLOBAL.booleanType
         elif type_str == 'SELF_TYPE':
-            return scope.enclosingClass
+            return GLOBAL.selfType
         else:
             return scope.lookupType(type_str)
 
@@ -157,7 +157,7 @@ class FeatureMethodDecl(Feature):
 
         functionType = scope.lookupType(self.methodName)
         formal_tys = functionType.param_tys
-        ret_ty = functionType.ret_ty
+        ret_ty = functionType.ret_ty 
 
         newscope = scope.lookup(self.methodName)
         for formal, formal_ty in zip(self.formalParams, formal_tys):
@@ -165,10 +165,9 @@ class FeatureMethodDecl(Feature):
 
         _, ty = self.bodyExpr.typecheck(newscope)
 
-        if isinstance(ty, SelfType):
-            ty = scope.enclosingClass
-
-        if not ty.isSubclassOf(ret_ty):
+        if ty == GLOBAL.selfType != ret_ty and not scope.enclosingClass.isSubclassOf(ret_ty) \
+            or ty != GLOBAL.selfType == ret_ty and not ty.isSubclassOf(scope.enclosingClass) \
+            or ty != GLOBAL.selfType != ret_ty and not ty.isSubclassOf(ret_ty):
             print("method declaration type mismatch\n {}".format(str(self)))
             exit()
 
@@ -300,7 +299,7 @@ class Dispatch(Expr):
                 print("type mismatch dispatch")
                 exit()
 
-        if isinstance(function_ty.ret_ty, SelfType):
+        if function_ty.ret_ty == GLOBAL.selfType:
             return None, classType
 
         return None, function_ty.ret_ty
@@ -369,6 +368,11 @@ class If(Expr):
 
         _, thn_ty = self.thn.typecheck(scope)
         _, els_ty = self.els.typecheck(scope)
+
+        if thn_ty == GLOBAL.selfType:
+            thn_ty = scope.enclosingClass
+        if els_ty == GLOBAL.selfType:
+            els_ty = scope.enclosingClass
 
         mutual = thn_ty.mutualParentOfTwo(els_ty)
 
@@ -468,7 +472,7 @@ class Let(Expr):
                 if not decInitType.isSubclassOf(decType):
                     print("type mismatch at let declaration")
                     exit()
-                letVarDecls.append((decl.id, decInitVal, decInitType))
+                letVarDecls.append((decl.id, decInitVal, decType))
             else:
                 initVal = self.getInitByType(decType)
                 letVarDecls.append((decl.id, initVal, decType))
@@ -520,10 +524,6 @@ class Case(Expr):
             _, body_ty = action.body.typecheck(scope)
             scope.delete(action.id)
 
-            if not body_ty.isSubclassOf(action_id_ty):
-                print("case action type mismatch")
-                exit()
-
             action_ids_tys.append((action.id, body_ty))
 
         for action_id, action_ty in action_ids_tys:
@@ -552,7 +552,7 @@ class NewConstruct(Expr):
 
     def typecheck(self, scope: Scope):
         if self.objType == 'self':
-            return None, scope.enclosingClass
+            return None, GLOBAL.selfType
 
         ty = scope.lookupType(self.objType)
 
@@ -811,7 +811,7 @@ class Self(Expr):
         return "self"
 
     def typecheck(self, scope):
-        return None, scope.enclosingClass
+        return None, GLOBAL.selfType
 
 
 class Id(Expr):
@@ -875,7 +875,7 @@ if __name__ == "__main__":
 
     parser = make_parser()
 
-    with open("Tests/let.cl") as file:
+    with open("Tests/manual-ex1.cl") as file:
             cool_program_code = file.read()
 
     parse_result = parser.parse(cool_program_code)

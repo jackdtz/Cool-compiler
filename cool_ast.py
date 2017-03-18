@@ -11,6 +11,10 @@ class Node(object):
     def __init__(self):
         pass
 
+    def error(self, msg):
+        print(msg)
+        GLOBAL.typecheckError = True
+
     def getType(self, scope: 'Scope', type_str: str) -> Type:
         if type_str == 'Int':
             return GLOBAL.integerType
@@ -56,8 +60,8 @@ class Program(Node):
             if c.inheritType:
                 parentClassType = self.getType(scope, c.inheritType)
                 if not parentClassType:
-                    print("class {} is not defined".format(str(c.inheritType)))
-                    exit()
+                    self.error("class {} is not defined".format(str(c.inheritType)))
+                    
             else:
                 parentClassType = GLOBAL.objectType
 
@@ -167,8 +171,8 @@ class FeatureMethodDecl(Feature):
         if ty == GLOBAL.selfType != ret_ty and not scope.enclosingClass.isSubclassOf(ret_ty) \
                 or ty != GLOBAL.selfType == ret_ty and not ty.isSubclassOf(scope.enclosingClass) \
                 or ty != GLOBAL.selfType != ret_ty and not ty.isSubclassOf(ret_ty):
-            print("method declaration type mismatch\n {}".format(str(self)))
-            exit()
+            self.error("method declaration type mismatch\n {}".format(str(self)))
+            
 
         return None, functionType
 
@@ -231,9 +235,9 @@ class AssignmentExpr(Expr):
         _, e_ty = self.expr.typecheck(scope)
 
         if not e_ty.isSubclassOf(id_ty):
-            print("Type mismatch for var {} and expression {}".format(
+            self.error("Type mismatch for var {} and expression {}".format(
                 str(id_ty), str(self.expr)))
-            exit()
+            
 
         return None, e_ty
 
@@ -264,8 +268,8 @@ class Dispatch(Expr):
             _, classType = self.objExpr.typecheck(scope)
 
         if not classType:
-            print("error class {} not yet define".format(str(self.objExpr)))
-            exit()
+            self.error("error class {} not yet define".format(str(self.objExpr)))
+            
 
         if self.dispatchedClassName:
             dispatchedClassType = self.getType(scope, self.dispatchedClassName)
@@ -277,15 +281,15 @@ class Dispatch(Expr):
                 self.topScope, classType)
 
         if not classType.isSubclassOf(dispatchedClassType):
-            print("Type mismatch, class {} is not a subclass of {}".format(
+            self.error("Type mismatch, class {} is not a subclass of {}".format(
                 str(classType.name), str(dispatchedClassType.name)))
-            exit()
+            
 
         function_ty = dispatchedClassScope.lookupType(self.methodName)
 
         if not function_ty:
-            print("dispatch method name {} is not defined".format(self.methodName))
-            exit()
+            self.error("dispatch method name {} is not defined".format(self.methodName))
+            
 
         arg_tys = []
         for arg in self.arguments:
@@ -296,8 +300,8 @@ class Dispatch(Expr):
 
         for arg_ty, param_ty in zip(arg_tys, function_ty.param_tys):
             if not arg_ty.isSubclassOf(param_ty):
-                print("type mismatch dispatch")
-                exit()
+                self.error("type mismatch dispatch")
+                
 
         if function_ty.ret_ty == GLOBAL.selfType:
             return None, classType
@@ -315,19 +319,19 @@ class MethodCall(Expr):
         self.args = args
 
     def __str__(self):
-        # print(self.exprs)
+        # self.error(self.exprs)
         return "{}({})".format(str(self.id), ", ".join([str(e) for e in self.args]))
 
     def typecheck(self, scope):
         method_ty = scope.lookupType(self.id)
 
         if not method_ty:
-            print("method {} is not defined".format(self.id))
-            exit()
+            self.error("method {} is not defined".format(self.id))
+            
 
         if not isinstance(method_ty, FuncType):
-            print("type mismatch method call 1")
-            exit()
+            self.error("type mismatch method call 1")
+            
 
         arg_tys = []
         for arg in self.args:
@@ -336,8 +340,8 @@ class MethodCall(Expr):
 
         for arg_ty, formal_ty in zip(arg_tys, method_ty.param_tys):
             if not arg_ty.isSubclassOf(formal_ty):
-                print("type mismatch method call 2")
-                exit()
+                self.error("type mismatch method call 2")
+                
 
         if isinstance(method_ty.ret_ty, SelfType):
             return None, scope.enclosingClass
@@ -363,8 +367,8 @@ class If(Expr):
         _, cnd_ty = self.cnd.typecheck(scope)
 
         if not isinstance(cnd_ty, BooleanType):
-            print("type mismatch if")
-            exit()
+            self.error("type mismatch if")
+            
 
         _, thn_ty = self.thn.typecheck(scope)
         _, els_ty = self.els.typecheck(scope)
@@ -377,8 +381,8 @@ class If(Expr):
         mutual = thn_ty.mutualParentOfTwo(els_ty)
 
         if not mutual:
-            print("if mismatch\n {}".format(str(self)))
-            exit()
+            self.error("if mismatch\n {}".format(str(self)))
+            
 
         return None, mutual
 
@@ -399,8 +403,8 @@ class While(Expr):
         _, cnd_ty = self.condition.typecheck(scope)
 
         if not isinstance(cnd_ty, BooleanType):
-            print("error while loop type mismatch")
-            exit()
+            self.error("error while loop type mismatch")
+            
 
         self.bodyExpr.typecheck(scope)
 
@@ -469,9 +473,9 @@ class Let(Expr):
             if decl.init:
                 decInitVal, decInitType = decl.init.typecheck(scope)
                 if not decInitType.isSubclassOf(decType):
-                    print("type mismatch at let declaration: init type {} is not a subclass of declared type {}".format(
+                    self.error("type mismatch at let declaration: init type {} is not a subclass of declared type {}".format(
                         str(decInitType.name), str(decType.name)))
-                    exit()
+                    
                 letVarDecls.append((decl.id, decInitVal, decType))
             else:
                 initVal = self.getInitByType(decType)
@@ -534,7 +538,7 @@ class Case(Expr):
         ret_ty = Type.mutualParentOfAll(action_tys)
 
         if not ret_ty:
-            print("error type mismatch")
+            self.error("error type mismatch")
 
         return None, ret_ty
 
@@ -586,8 +590,8 @@ class BinaryOp(Expr):
         _, ty2 = self.e2.typecheck(scope)
 
         if not isinstance(ty1, IntegerType) and not isinstance(ty2, IntegerType):
-            print("type mismatch binaryop")
-            exit()
+            self.error("type mismatch binaryop")
+            
 
         if isinstance(self, (Plus, Minus, Multiply, Divide)):
             return None, GLOBAL.integerType
@@ -690,22 +694,22 @@ class Eq(BinaryOp):
 
         if isinstance(ty1, IntegerType) and not isinstance(ty2, IntegerType) \
            or not isinstance(ty1, IntegerType) and isinstance(ty2, IntegerType):
-            print("type mismatch Eq1")
-            exit()
+            self.error("type mismatch Eq1")
+            
 
         if isinstance(ty1, BooleanType) and not isinstance(ty2, BooleanType) \
            or not isinstance(ty1, BooleanType) and isinstance(ty2, BooleanType):
-            print("type mismatch Eq2")
-            exit()
+            self.error("type mismatch Eq2")
+            
 
         if isinstance(ty1, StringType) and not isinstance(ty2, StringType) \
            or not isinstance(ty1, StringType) and isinstance(ty2, StringType):
-            print("type mismatch Eq3")
-            exit()
+            self.error("type mismatch Eq3")
+            
 
         if not type(ty1) == type(ty2):
-            print("type mismatch eq4")
-            exit()
+            self.error("type mismatch eq4")
+            
 
         return None, GLOBAL.booleanType
 
@@ -749,7 +753,7 @@ class Not(Expr):
         _, ty = self.expr.typecheck(scope)
 
         if not isinstance(ty, BooleanType):
-            print("boolena type mismatch")
+            self.error("boolena type mismatch")
 
         return None, GLOBAL.booleanType
 
@@ -857,8 +861,8 @@ class Neg(Expr):
         _, ty = self.expr.typecheck(scope)
 
         if not isinstance(ty, IntegerType):
-            print("neg type mismatch")
-            exit()
+            self.error("neg type mismatch")
+            
 
         return None, GLOBAL.integerType
 
@@ -880,4 +884,4 @@ if __name__ == "__main__":
     parse_result = parser.parse(cool_program_code)
     ret = parse_result.typecheck()
     if ret:
-        print("successful")
+        self.error("successful")

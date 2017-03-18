@@ -11,3 +11,6 @@ selfType = SelfType()
 voidType = VoidType()
 
 topLevelClass = TopLevelClass("topLevel")
+
+
+typecheckError = False

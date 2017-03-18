@@ -1,6 +1,7 @@
 
 
 from parser import *
+import cool_global as GLOBAL
 
 if __name__ == "__main__":
     import sys, os, glob
@@ -15,7 +16,9 @@ if __name__ == "__main__":
             file_path = test_folder + "/" + filename
             print("-------------------Testing parser with file {}-------------------".format(filename))
             with open(file_path, encoding='utf-8') as file:
+                GLOBAL.typecheckError = False
                 cool_program_code = file.read()
                 parse_result = parser.parse(cool_program_code)
                 if parse_result.typecheck():
-                    print("successful")
+                    if not GLOBAL.typecheckError:
+                        print("successful")

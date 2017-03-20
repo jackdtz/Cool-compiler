@@ -6,6 +6,10 @@ from random import randint
 
 
 class Node(object):
+    """
+    The base class for all ast, this class also define the top Scope
+    and several helper function for all subclasses
+    """
     topScope = Scope(enclosingClass=GLOBAL.topLevelClass, parent=None)
 
     def __init__(self):
@@ -16,6 +20,11 @@ class Node(object):
         GLOBAL.typecheckError = True
 
     def getType(self, scope: 'Scope', type_str: str) -> Type:
+        """
+        Given a type string: Int, String, Bool, SELF_TYPE, or class type
+        return its type object, note that each type object is unique. pls
+        see cool_global.py for more info
+        """ 
         if type_str == 'Int':
             return GLOBAL.integerType
         elif type_str == 'String':
@@ -28,6 +37,10 @@ class Node(object):
             return scope.lookupType(type_str)
 
     def getInitByType(self, decType):
+        """
+        return a value base on the input type, this is used 
+        to initialize different variable
+        """
         if decType == GLOBAL.integerType:
             return 0
         elif decType == GLOBAL.stringType:
@@ -35,7 +48,7 @@ class Node(object):
         elif decType == GLOBAL.booleanType:
             return False
         else:
-            return GLOBAL.voidType
+            return GLOBAL.void
 
 
 class Program(Node):
@@ -50,6 +63,19 @@ class Program(Node):
         return "\n".join([str(c) for c in self.classes])
 
     def preprocess(self, scope):
+        """
+        Before we type check the program, we have to proprocess the whole
+        program and record all the class declaration in order to support
+        forward reference. 
+
+        1. Walk through all class declaration header and record the class name,
+           class type, class value(open a scope for method declarations)
+        2. Walk through all class declartion again and record all inherited information
+           (if there is one, or use object type as its inherited class type)
+        3. For each class declaration, get its method declaration scope and start walking 
+           through its all feature declarations. For each method declaration, a new scope
+           will be created for its value information (please see scope.py for more info)
+        """
         for c in self.classes:
             classType = ClassType(c.className)
             classScope = Scope(parent=scope)
@@ -121,6 +147,15 @@ class Class(Node):
             return "class {} {{\n {} \n}};".format(str(self.className), features)
 
     def typecheck(self, topScope: Scope):
+        """
+        To type check a class:
+
+        1. get the inherited class scope. We will need a list of method
+           declarations from parent class.
+        2. since the pass-in scope is the top-level scope, we have to first
+           get the class scope(where we store method declaration) by class Name
+        3. type check features using the class scope
+        """
 
         if self.inheritType:
             inheritClassScope = topScope.getDefiningScope(self.inheritType)
@@ -157,6 +192,30 @@ class FeatureMethodDecl(Feature):
         return "{}({}) : {} {{\n\t {} }};".format(str(self.methodName), params, str(self.retType), str(self.bodyExpr))
 
     def typecheck(self, scope: Scope):
+        """
+        To type check a method declaration:
+
+        1. lookup in scope and get the function type 
+           (it is guarantee to exist as it has already been preprocessed)
+        2. create a new scope for the method. 
+        3. add all formal paramater and their types into the new scope
+        4. type check the body of the method using the new scope
+        5. check to see if the return type from step 4 is 'compatible' to 
+           the declared type from the method header.
+
+        There are a few things worth to be mentioned here:
+
+        1. SELF_TYPE is not allowed to exist as a type of a formal paramter.
+        2. the return type of method body (ty) and the declared return type of the method(decl_ty) 
+           can be SELF_TYPE. 
+        3. If ty is SELF_TYPE and decl_ty is not, then compare the enclosing class type 
+           with decl_ty
+        3. If ty is not SELF_TYPE but decl_ty is, then comparen the enclosing class type 
+           with ty
+        4. If both ty and decl_ty are SELF_TYPE, no action needed
+        5. If both ty and decl_ty are NOT SELF_TYPE, then compare them and see if 
+           ty is a subtype of decl_ty
+        """
 
         functionType = scope.lookupType(self.methodName)
         formal_tys = functionType.param_tys
@@ -164,6 +223,9 @@ class FeatureMethodDecl(Feature):
 
         newscope = scope.lookup(self.methodName)
         for formal, formal_ty in zip(self.formalParams, formal_tys):
+            if formal_ty is GLOBAL.selfType:
+                self.error("SEFL_TYPE is not allowed to exist as a type of a formal paramter")
+                return
             newscope.add(formal.id, None, formal_ty)
 
         _, ty = self.bodyExpr.typecheck(newscope)
@@ -194,6 +256,14 @@ class FeatureAttribute(Feature):
             return "{} : {}".format(str(self.id), str(self.decType))
 
     def typecheck(self, scope: Scope):
+        """
+        add the type declaration into scope and return the declared type
+        """
+
+        if self.id == "self":
+            self.error("Illegal name: self cannot be an attribute name")
+            return
+
         decType = self.getType(scope, self.decType)
         scope.add(self.id, None, decType)
         return None, decType
@@ -230,14 +300,22 @@ class AssignmentExpr(Expr):
         return "{} <- {}".format(str(self.id), str(self.expr))
 
     def typecheck(self, scope: Scope):
+        """
+        1. get the type of declared id 
+        2. type check expression
+        3. compare and see if the type of expression conforms the type of declared id
+        """
         id_ty = scope.lookupType(self.id)
+
+        if id_ty is GLOBAL.selfType:
+            self.error("Illegal assignment: cannot assignment to SELF_TYPE")
+            return
 
         _, e_ty = self.expr.typecheck(scope)
 
         if not e_ty.isSubclassOf(id_ty):
             self.error("Type mismatch for var {} and expression {}".format(
                 str(id_ty), str(self.expr)))
-            
 
         return None, e_ty
 
@@ -262,6 +340,21 @@ class Dispatch(Expr):
             return "{}.{}({})".format(str(self.objExpr), str(self.methodName), arguments)
 
     def typecheck(self, scope: Scope):
+        """
+        There are two forms of dispatch:
+            <id>(<expr>,...,<expr>)
+            <expr>@<type>.id(<expr>,...,<expr>)
+
+        We first need to find the correct method definition by:
+
+        1. check if dispatchClassName exist. If so get the dispatch class 
+           scope, else find the class scope of enclosing class 
+        2. use the scope from step 1 and get the method definition
+        3. type check method and see if formal parameters match arguments
+
+        note that argument can be of type SELF_TYPE, if this is the case 
+        then it should be converted to enclosingClassType
+        """
         if isinstance(self.objExpr, Self):
             classType = scope.enclosingClass
         else:
@@ -309,46 +402,6 @@ class Dispatch(Expr):
         return None, function_ty.ret_ty
 
 
-class MethodCall(Expr):
-    """
-    expr ::= ID( [ expr [, expr]* ] )
-    """
-
-    def __init__(self, id: str, args: List['Expr']):
-        self.id = id
-        self.args = args
-
-    def __str__(self):
-        # self.error(self.exprs)
-        return "{}({})".format(str(self.id), ", ".join([str(e) for e in self.args]))
-
-    def typecheck(self, scope):
-        method_ty = scope.lookupType(self.id)
-
-        if not method_ty:
-            self.error("method {} is not defined".format(self.id))
-            
-
-        if not isinstance(method_ty, FuncType):
-            self.error("type mismatch method call 1")
-            
-
-        arg_tys = []
-        for arg in self.args:
-            _, ty = arg.typecheck(scope)
-            arg_tys.append(ty)
-
-        for arg_ty, formal_ty in zip(arg_tys, method_ty.param_tys):
-            if not arg_ty.isSubclassOf(formal_ty):
-                self.error("type mismatch method call 2")
-                
-
-        if isinstance(method_ty.ret_ty, SelfType):
-            return None, scope.enclosingClass
-
-        return None, method_ty.ret_ty
-
-
 class If(Expr):
     """
     expr ::= if expr then expr else expr fi
@@ -383,7 +436,6 @@ class If(Expr):
         if not mutual:
             self.error("if mismatch\n {}".format(str(self)))
             
-
         return None, mutual
 
 
@@ -402,10 +454,9 @@ class While(Expr):
     def typecheck(self, scope):
         _, cnd_ty = self.condition.typecheck(scope)
 
-        if not isinstance(cnd_ty, BooleanType):
+        if cnd_ty is not GLOBAL.booleanType:
             self.error("error while loop type mismatch")
             
-
         self.bodyExpr.typecheck(scope)
 
         return None, GLOBAL.objectType
@@ -461,6 +512,9 @@ class Let(Expr):
         return "let {} \tin \t{}\n".format("\n".join(["\t" + str(decl) + "\n" for decl in self.declareVars]), str(self.bodyExpr))
 
     def typecheck(self, scope):
+        """
+        for each let body, a new scope needs to be created. 
+        """
 
         let_scope = Scope(parent=scope)
         let_scope.enclosingClass = scope.enclosingClass
@@ -470,6 +524,11 @@ class Let(Expr):
         letVarDecls = []
         for decl in self.declareVars:
             decType = self.getType(scope, decl.decType)
+
+            if decType is GLOBAL.selfType:
+                self.error("Illegal binding: cannot bind SELF_TYPE in let expression")
+                return
+
             if decl.init:
                 decInitVal, decInitType = decl.init.typecheck(scope)
                 if not decInitType.isSubclassOf(decType):
@@ -524,6 +583,11 @@ class Case(Expr):
 
         for action in self.actions:
             action_id_ty = self.getType(scope, action.defType)
+
+            if action_id_ty is GLOBAL.selfType:
+                self.error("Illegal type declaration: SELF_TYPE cannot be declared at here")
+                return
+
             scope.add(action.id, None, action_id_ty)
             _, body_ty = action.body.typecheck(scope)
             scope.delete(action.id)
@@ -589,10 +653,9 @@ class BinaryOp(Expr):
         _, ty1 = self.e1.typecheck(scope)
         _, ty2 = self.e2.typecheck(scope)
 
-        if not isinstance(ty1, IntegerType) and not isinstance(ty2, IntegerType):
+        if ty1 is not GLOBAL.integerType and ty2 is not GLOBAL.integerType:
             self.error("type mismatch binaryop")
             
-
         if isinstance(self, (Plus, Minus, Multiply, Divide)):
             return None, GLOBAL.integerType
 
@@ -692,25 +755,14 @@ class Eq(BinaryOp):
         if ty2 == GLOBAL.selfType:
             ty2 = scope.enclosingClass
 
-        if isinstance(ty1, IntegerType) and not isinstance(ty2, IntegerType) \
-           or not isinstance(ty1, IntegerType) and isinstance(ty2, IntegerType):
-            self.error("type mismatch Eq1")
-            
+        prim_ty_set = {GLOBAL.integerType, GLOBAL.stringType, GLOBAL.booleanType} 
 
-        if isinstance(ty1, BooleanType) and not isinstance(ty2, BooleanType) \
-           or not isinstance(ty1, BooleanType) and isinstance(ty2, BooleanType):
-            self.error("type mismatch Eq2")
-            
-
-        if isinstance(ty1, StringType) and not isinstance(ty2, StringType) \
-           or not isinstance(ty1, StringType) and isinstance(ty2, StringType):
-            self.error("type mismatch Eq3")
-            
+        if ty1 != ty2 and (ty1 in prim_ty_set or ty2 in prim_ty_set):
+            self.error("type mismatch at = operator") 
 
         if not type(ty1) == type(ty2):
             self.error("type mismatch eq4")
             
-
         return None, GLOBAL.booleanType
 
 
@@ -752,7 +804,7 @@ class Not(Expr):
     def typecheck(self, scope):
         _, ty = self.expr.typecheck(scope)
 
-        if not isinstance(ty, BooleanType):
+        if ty is not GLOBAL.booleanType:
             self.error("boolena type mismatch")
 
         return None, GLOBAL.booleanType
@@ -860,10 +912,9 @@ class Neg(Expr):
     def typecheck(self, scope):
         _, ty = self.expr.typecheck(scope)
 
-        if not isinstance(ty, IntegerType):
+        if ty is not GLOBAL.integerType:
             self.error("neg type mismatch")
             
-
         return None, GLOBAL.integerType
 
 

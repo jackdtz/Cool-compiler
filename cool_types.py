@@ -1,6 +1,10 @@
 from typing import List
 
 class Type(object):
+    """
+    The base class for all type, all other type class inherits
+    this class
+    """
     def __init__(self, parent: 'Type'=None):
         self.parent = parent
 
@@ -12,6 +16,9 @@ class Type(object):
         return False
 
     def lengthToRoot(self):
+        """
+        check the height of the type in the current type hierarchy 
+        """
         count = 0
         s = self
         while s.parent != None:
@@ -53,6 +60,10 @@ class Type(object):
 
     @staticmethod        
     def mutualParentOfAll(tys: List['Type']):
+        """
+        takes in a list of types and return their mutual parent,
+        return None if does not exist.
+        """
         t = tys[0]
         for i in range(len(tys) - 1):
             t = t.mutualParentOfTwo(tys[i + 1])
@@ -101,8 +112,6 @@ class ClassType(Type):
 class TopLevelClass(ClassType):
     pass
 
-class VoidType(Type):
-    pass
 
 
 if __name__ == "__main__":

@@ -1,16 +1,17 @@
 
 from cool_types import ObjectType, TopLevelClass, SelfType
-from cool_types import StringType, BooleanType, IntegerType, VoidType
+from cool_types import StringType, BooleanType, IntegerType
 from scope import *
+from cool_values import *
 
 objectType = ObjectType()
 stringType = StringType(parent=objectType)
 integerType = IntegerType(parent=objectType)
 booleanType = BooleanType(parent=objectType)
 selfType = SelfType()
-voidType = VoidType()
 
 topLevelClass = TopLevelClass("topLevel")
 
+void = Void()
 
 typecheckError = False

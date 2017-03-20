@@ -1,50 +1,64 @@
-from collections import OrderedDict
-import sys
 from cool_types import *
-import copy
 import cool_global as GLOBAL
 
 
 class Scope(object):
-    """
-    """
 
-    def __init__(self, enclosingClass: Type=None, parent: Type=None):
+
+    def __init__(self, enclosingClass: Type=None, parent: 'Scope'=None):
+        """
+        takes in a type that represented the class that enclose the current scope, 
+        and another scope represented the parent scope. The constructor also initialize 
+        an empty hash table, as well as an reference to the scope of the parent class of 
+        current enclosing class type
+        """
         self.parentScope = parent
         self.enclosingClass = enclosingClass
         self.inheritClassScope = None
         self.table = {}
 
-    def copy(self) -> 'Scope':
-        return copy.deepcopy(self)
-
     def add(self, key, value, ty):
+        """
+        each key has two information associated to it: a type info, and a value info.
+        """
         self.table[key] = {}
         self.table[key]['type'] = ty
         self.table[key]['value'] = value
 
     def delete(self, key):
+        """
+        delete a key and its associated information
+        """
         del self.table[key]
 
     def lookup(self, key):
+        """
+        takes in a key and return its value information
+        """
         return self.lookupProperty(key, 'value')
 
     def lookupType(self, key):
+        """
+        takes in a key and return its type information
+        """
         return self.lookupProperty(key, 'type')
 
     def lookupLocal(self, key):
         """
-        return either None or the value associated to key
+        takes in a key and lookup its value information at the current scope
         """
         return self.lookupProperty(key, 'value')
 
     def lookupLocalType(self, key):
         """
-        return either None or the type associated to key
+        takes in a key and lookup its type information at the current scope
         """
         return self.lookupPropertyLocal(key, 'type')
 
     def lookupPropertyLocal(self, key, kind):
+        """
+        takes in a key and lookup its information at the current scope
+        """
         val = self.table.get(key, None)
 
         if val:
@@ -54,7 +68,7 @@ class Scope(object):
 
     def lookupProperty(self, key, kind):
         """
-        lookup in the value environment
+        lookup in the scope environment
         """
         val = self.lookupPropertyLocal(key, kind)
 
@@ -75,6 +89,9 @@ class Scope(object):
         return None
 
     def getDefiningScope(self, name: str) -> 'Scope':
+        """
+        Provided a name, return the scope at which it is defined.
+        """
         ret = self.table.get(name, None)
 
         if ret:
@@ -85,6 +102,9 @@ class Scope(object):
             return None
 
     def getEnclosingClassScope(self) -> 'Scope':
+        """
+        return the class-level scope that enclose the current scope
+        """
         s = self
         while s.parentScope.enclosingClass != GLOBAL.topLevelClass:
             s = s.parentScope
@@ -92,6 +112,9 @@ class Scope(object):
         return s
 
     def getTopLevelScope(self) -> 'Scope':
+        """
+        return the top-level scope
+        """
         s = self
         while s.enclosingClass != GLOBAL.topLevelClass:
             s = s.parentScope
@@ -117,6 +140,9 @@ class Scope(object):
 
     @staticmethod
     def initTopScope(scope):
+        """
+        initialize the top-level scope
+        """
         object_scope = Scope(parent=scope)
         object_scope.add('abort', None, FuncType([], GLOBAL.objectType))
         object_scope.add('type_name', None, FuncType([], GLOBAL.stringType))
@@ -157,8 +183,13 @@ class Scope(object):
 
 
     def findScopeByType(self, topScope: 'Scope', ty: 'Type') -> 'Scope':
+        """
+        Provide a type object (note that every type object is unique) and return its associate scope.
+        """
         for k, v in topScope.table.items():
             if v['type'] == ty:
                 return v['value']
 
         return None
+
+

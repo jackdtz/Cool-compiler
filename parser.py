@@ -150,17 +150,14 @@ class Parser(object):
         """
         expression : expression DOT ID LPAREN arguments RPAREN
                    | expression ALT TYPE_ID DOT ID LPAREN arguments RPAREN
+                   | ID LPAREN arguments RPAREN
         """
         if len(p) == 7:
             p[0] = Dispatch(p[1], p[3], p[5])
-        else:
+        elif len(p) == 9:
             p[0] = Dispatch(p[1], p[5], p[7], dispatchedClassName=p[3])
-    
-    def p_expression_method_call(self, p):
-        """
-        expression : ID LPAREN arguments RPAREN
-        """
-        p[0] = MethodCall(p[1], p[3])
+        else:
+            p[0] = Dispatch(Self(), p[1], p[3])
 
     def p_arguments(self, p):
         """
@@ -372,23 +369,23 @@ if __name__ == "__main__":
 
     parser = make_parser() 
 
-    for filename in os.listdir(test_folder):
-        if filename.endswith('.cl'):
-            file_path = test_folder + "/" + filename
-            print("-------------------Testing parser with file {}-------------------".format(filename))
-            with open(file_path, encoding='utf-8') as file:
-                cool_program_code = file.read()
-                parse_result = parser.parse(cool_program_code)
-                # print(parse_result)
+    # for filename in os.listdir(test_folder):
+    #     if filename.endswith('.cl'):
+    #         file_path = test_folder + "/" + filename
+    #         print("-------------------Testing parser with file {}-------------------".format(filename))
+    #         with open(file_path, encoding='utf-8') as file:
+    #             cool_program_code = file.read()
+    #             parse_result = parser.parse(cool_program_code)
+    #             # print(parse_result)
                 
     
         
 
 
-    # with open("Tests/helloworld.cl") as file:
-    #         cool_program_code = file.read()
+    with open("Tests/atoi_test.cl") as file:
+            cool_program_code = file.read()
 
-    # parse_result = parser.parse(cool_program_code)
-    # print(parse_result)
+    parse_result = parser.parse(cool_program_code)
+    print(parse_result)
 
 

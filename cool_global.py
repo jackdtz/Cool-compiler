@@ -15,3 +15,18 @@ topLevelClass = TopLevelClass("topLevel")
 void = Void()
 
 typecheckError = False
+
+
+
+
+# Code Generation
+
+SPACE = " "
+TAB = SPACE * 4
+NEWLINE = "\n"
+UNDERSCORE = "_"
+COLON = ":"
+WORD = ".word"
+GLOBAL = ".globl"
+PROTOTYPE_SUFFIX = "protoObj"
+DISPATCH_TABLE = "dispatch_table"

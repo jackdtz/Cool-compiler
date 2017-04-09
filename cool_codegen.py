@@ -7,18 +7,17 @@ class CGen(object):
 
     def __init__(self, program: 'Program'):
         self.program = program
-        self.classTable = {}
-        self.dispatchTable = {}
         self.inttable = {}
         self.stringtable = {}
         self.booltable = {}
-        self.classNameTab = []
-        self.asm = []
-        self.runtime_funs = ['print_string']
-        self.tag = 0
+        self.tag = -1
         self.attrtable = {}
         self.wordsize = 8
+
         self.prototypes = OrderedDict()
+        self.dispatchTable = {}
+        self.classObjTab = []
+        
 
     def genTag(self):
         # generate prime number for class tag
@@ -69,14 +68,11 @@ class CGen(object):
     def genGlobalData(self):
 
         ret = ""
-
         ret += ".data" + NEWLINE
 
         # generate prototype objects
-
         all_classes = self.getPredeinedClasses() + self.program.classes
 
-        
         for c in all_classes:
             self.attrtable[c.className] = {}
             prototype = []
@@ -86,10 +82,13 @@ class CGen(object):
             attributes = [f for f in c.features if isinstance(f, FeatureAttribute)]
             prototype.append(len(attributes) + 1)   # size
 
-
             dispatchTab_lab = c.className + UNDERSCORE + DISPATCH_TABLE
             prototype.append(dispatchTab_lab)
-            self.classNameTab.append(dispatchTab_lab)
+
+
+            methodDecls = [f for f in c.features if isinstance(f, FeatureMethodDecl)]
+            self.dispatchTable[c.className] = [c.className + DOT + m.methodName for m in methodDecls] 
+
 
             for i, attr in enumerate(attributes):
                 if attr.decType == 'Int':
@@ -110,7 +109,6 @@ class CGen(object):
 
                 self.attrtable[c.className][attr.id] = (i + 3) * self.wordsize
                 
-            
             self.prototypes[c.className] = prototype
 
         for c in all_classes:
@@ -118,15 +116,36 @@ class CGen(object):
             if c.inheritType:
                 parentProtObj = self.prototypes[c.inheritType]
                 parentAttrs = parentProtObj[3:]
+                parentMethods = self.dispatchTable[c.inheritType]
 
                 protoObj = self.prototypes[c.className]
                 protoObjAttrs = protoObj[3:]
-                protoObj = protoObj[0:3] + parentAttrs + protoObjAttrs
-        
+                self.prototypes[c.className] = protoObj[0:3] + parentAttrs + protoObjAttrs
+                protoMethods = self.dispatchTable[c.className]
+                self.dispatchTable[c.className] = parentMethods + protoMethods
 
+        # generate prototype object
         for className, values in self.prototypes.items():
             value_str =  NEWLINE.join([TAB + WORD + TAB + str(v) for v in values])
             ret += NEWLINE + className + UNDERSCORE + PROTOTYPE_SUFFIX + COLON + NEWLINE + value_str + NEWLINE
+
+        # generate dispatch table
+        for className, methods in self.dispatchTable.items():
+            value_str = NEWLINE.join([TAB + WORD + TAB + str(m) for m in methods])
+            ret += NEWLINE + className + UNDERSCORE + DISPATCH_TABLE + COLON + NEWLINE + value_str + NEWLINE
+
+        # generate classObj table 
+        all_classnames = [c for c in self.prototypes.keys()]
+        
+        classObjs = []
+        for className in all_classnames:
+            protoLabel = className + UNDERSCORE + PROTOTYPE_SUFFIX
+            initLabel = className + UNDERSCORE + INIT
+            classObjs.append(protoLabel)
+            classObjs.append(initLabel)
+        classObjs_str = NEWLINE.join([TAB + WORD + TAB + str(name) for name in classObjs])
+
+        ret += NEWLINE + OBJTABLE  + COLON + NEWLINE + classObjs_str + NEWLINE
 
         return ret  
 
@@ -137,17 +156,8 @@ class CGen(object):
         return ret
 
 
-
-
-
-            
-
-
 if __name__ == "__main__":
     
-    
-
-
     import sys
     import os
     import glob
@@ -168,6 +178,7 @@ if __name__ == "__main__":
 
     print(code)
     print(cgen.attrtable)
+    print(cgen.dispatchTable)
     
 
         

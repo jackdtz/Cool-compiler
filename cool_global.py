@@ -23,6 +23,7 @@ typecheckError = False
 
 SPACE = " "
 TAB = SPACE * 4
+DOT = "."
 NEWLINE = "\n"
 UNDERSCORE = "_"
 COLON = ":"
@@ -30,3 +31,5 @@ WORD = ".word"
 GLOBAL = ".globl"
 PROTOTYPE_SUFFIX = "protoObj"
 DISPATCH_TABLE = "dispatch_table"
+INIT = "init"
+OBJTABLE = "class_objTab"

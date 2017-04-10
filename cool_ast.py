@@ -289,7 +289,7 @@ class Expr(Node):
 
 class AssignmentExpr(Expr):
     """
-    expr ::= ID<- expr
+    expr ::= ID <- expr
     """
 
     def __init__(self, id: str, expr: 'Expr'):

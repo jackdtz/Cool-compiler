@@ -82,10 +82,7 @@ class CGen(object):
         return [ObjectClass, IOClass, StringClass, IntClass, BoolClass]
 
 
-    def genGlobalData(self):
-
-        ret = ""
-        
+    def collectGlobalData(self):
 
         # generate prototype objects
         all_classes = self.getPredeinedClasses() + self.program.classes
@@ -146,12 +143,19 @@ class CGen(object):
                 protoMethods = self.dispatchTable[c.className]
                 self.dispatchTable[c.className] = parentMethods + protoMethods
 
+        
+    def code_genProtoTable(self):
+        ret = ""
+
         # generate prototype object
         for className, values in self.prototypes.items():
             value_str =  NEWLINE.join([TAB + WORD + TAB + str(v) for v in values])
             ret += NEWLINE + className + UNDERSCORE + PROTOTYPE_SUFFIX + COLON + NEWLINE + value_str + NEWLINE
 
+        return ret
 
+
+    def translate_dispatchTable(self):
         # transfer dispatch table so that for each class, its methods map to an associated offset in the list
         for className, methodList in self.dispatchTable.items():
             newvalue = {}
@@ -168,7 +172,10 @@ class CGen(object):
 
             self.dispatchTable[className] = newvalue
 
+    def code_genDispatchTable(self):
         # generate dispatch table
+        ret = ""
+        self.translate_dispatchTable()
         for className, methodInfos in self.dispatchTable.items():
 
             sorted_methodInfos = sorted(methodInfos.items(), key=lambda value: value[1]['offset'])
@@ -176,9 +183,13 @@ class CGen(object):
             value_str = NEWLINE.join([TAB + WORD + TAB + str(methodInfo['definedClassName']) + UNDERSCORE + str(methodName) for (methodName, methodInfo) in sorted_methodInfos])
             ret += NEWLINE + className + UNDERSCORE + DISPATCH_TABLE + COLON + NEWLINE + value_str + NEWLINE
 
+        return ret
+
+    def code_genClassObjTable(self):
         # generate classObj table 
+        ret = "" 
+
         all_classnames = [c for c in self.prototypes.keys()]
-        
         classObjs = []
         for className in all_classnames:
             protoLabel = className + UNDERSCORE + PROTOTYPE_SUFFIX
@@ -189,7 +200,9 @@ class CGen(object):
 
         ret += NEWLINE + OBJTABLE  + COLON + NEWLINE + classObjs_str + NEWLINE
 
-        return ret  
+        return ret
+
+
 
     def code_genIntConsts(self):
         int_consts = []
@@ -246,7 +259,11 @@ class CGen(object):
 
     def code_gen(self):
         data = ".data" + NEWLINE
-        data += self.genGlobalData()
+
+        self.collectGlobalData()
+        data += self.code_genClassObjTable()
+        data += self.code_genProtoTable()
+        data += self.code_genDispatchTable()
 
 
         text = ".text" + NEWLINE

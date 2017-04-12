@@ -180,8 +180,8 @@ Main_main:
     pushq %rbp
     movq %rsp, %rbp
     subq $16, %rsp
-    movq %rdi, 0(%rbp)
-    movq 0(%rbp), %rdi
+    movq %rdi, -8(%rbp)
+    movq -8(%rbp), %rdi
     leaq string_const1(%rip), %rax
     addq $32, %rax
     movq %rax, %rsi

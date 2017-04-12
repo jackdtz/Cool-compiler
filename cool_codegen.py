@@ -396,7 +396,7 @@ class CGen(object):
         else:
             ret += TAB + "subq $16, %rsp" + NEWLINE
 
-        ret += TAB + "movq %rdi, 0(%rbp)" + NEWLINE
+        ret += TAB + "movq %rdi, -8(%rbp)" + NEWLINE
 
         if num_params > 0:
             # size_for_params = align(self.wordsize * num_params, ALIGNMENT_SIZE)
@@ -519,7 +519,7 @@ class CGen(object):
 
     def gen_selfObjAddress(self):
 
-        return TAB + "movq 0(%rbp), {}".format(OBJ_ADDR_REG) + NEWLINE
+        return TAB + "movq -8(%rbp), {}".format(OBJ_ADDR_REG) + NEWLINE
 
     def genMethodEntry(self):
         return TAB + "pushq %rbp" + NEWLINE + TAB + "movq %rsp, %rbp" + NEWLINE

@@ -45,11 +45,13 @@ IO_in_string()
 
     char *buffer = (char*) malloc(max);
 
-    if (buffer == NULL) {
+    if (buffer == NULL) 
+    {
         return NULL;
     }
 
-    if (runtime_getline(buffer, max) > 0) {
+    if (runtime_getline(buffer, max) > 0) 
+    {
         return buffer;
     }
 
@@ -110,9 +112,3 @@ string_substr(const char *s, int64_t start, int64_t end)
 
     return ret;
 }
-
-// int
-// main(void)
-// {
-//     return 0;
-// }

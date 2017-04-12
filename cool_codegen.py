@@ -4,8 +4,6 @@ from collections import OrderedDict
 from operator import itemgetter
 from utilities import *
 
-
-
 # %rax accumulator
 # %rdi self object address
 
@@ -16,6 +14,8 @@ class CGen(object):
 
         self.tag = -1
         self.seq = -1
+        self.condSeq = -1
+
         self.attrtable = {}
         self.wordsize = 8
 
@@ -24,6 +24,8 @@ class CGen(object):
         self.methodList = []
 
         self.param_regs = ['%rdi', '%rsi', '%rdx', '%rcx', '%r8', '%r9']
+
+
         self.predefinedClassName = ['Object', 'IO', 'Int', 'String', 'Bool']
         self.rt_defined_methods = ['IO_in_int', 'IO_in_string']
         
@@ -32,11 +34,10 @@ class CGen(object):
         self.booltable = {}
         self.tagtable = {}
 
-
         self.initialize()
 
     def initialize(self):
-        seq = self.getSeqNum()
+        seq = self.genSeqNum()
         self.inttable['0'] = "int_const" + str(seq)
         self.stringtable[''] = "string_const" + str(seq)
 
@@ -46,19 +47,24 @@ class CGen(object):
         self.tag += 1
         return self.tag
 
-    def getSeqNum(self):
+    def genSeqNum(self):
         self.seq += 1
         return self.seq
+
+    def genCondSeq(self):
+        self.condSeq += 1
+        return self.condSeq
+
 
     def genGloDirectives(self):
 
         ret = "\n"
-        for name in self.methodList:
-            ret += TAB + GLOBAL + TAB + name + NEWLINE
+        ret += TAB + ".globl Main_init" + NEWLINE
+        ret += TAB + ".globl Main_protoObj" + NEWLINE
+        ret += TAB + ".globl Main_main" + NEWLINE
+        ret += NEWLINE
 
         return ret
-
-
 
     def getPredeinedClasses(self):
         ObjectClass = Class(
@@ -99,7 +105,6 @@ class CGen(object):
 
         return [ObjectClass, IOClass, StringClass, IntClass, BoolClass]
 
-
     def collectGlobalData(self):
 
         # generate prototype objects
@@ -123,7 +128,7 @@ class CGen(object):
             methodDecls = [f for f in c.features if isinstance(f, FeatureMethodDecl)]
             self.dispatchTable[c.className] = [(c.className, m.methodName) for m in methodDecls] 
 
-
+            # initialize attribute in the prototype object
             for i, attr in enumerate(attributes):
                 if attr.decType == 'Int':
                     if not attr.init:
@@ -148,9 +153,7 @@ class CGen(object):
                 
             self.prototypes[c.className] = prototype
 
-
         for c in all_classes:
-
             if c.inheritType:
                 parentProtObj = self.prototypes[c.inheritType]
                 parentAttrs = parentProtObj[3:]
@@ -162,7 +165,6 @@ class CGen(object):
                 protoMethods = self.dispatchTable[c.className]
                 self.dispatchTable[c.className] = parentMethods + protoMethods
 
-        
     def code_genProtoTable(self):
         ret = ""
 
@@ -172,7 +174,6 @@ class CGen(object):
             ret += NEWLINE + className + UNDERSCORE + PROTOTYPE_SUFFIX + COLON + NEWLINE + value_str + NEWLINE
 
         return ret
-
 
     def translate_dispatchTable(self):
         # transfer dispatch table so that for each class, its methods map to an associated offset in the list
@@ -231,8 +232,6 @@ class CGen(object):
 
         return ret
 
-
-
     def code_genIntConsts(self):
         int_consts = []
 
@@ -250,11 +249,7 @@ class CGen(object):
 
             int_consts.append(label + COLON + NEWLINE + "".join(const))
 
-
         return NEWLINE.join(int_consts)
-
-        
-
 
     def codeg_genStringConsts(self):
 
@@ -279,14 +274,10 @@ class CGen(object):
 
             string_consts.append(label + COLON + NEWLINE + "".join(const))
 
-       
-
-
         return NEWLINE.join(string_consts)
 
 
 #######################################################################################################################
-
 
     def code_gen(self):
         data_header = ".data" + NEWLINE
@@ -297,7 +288,6 @@ class CGen(object):
         data += self.code_genDispatchTable()
 
         globl_directives = self.genGloDirectives()
-
 
         text_header = ".text" + NEWLINE
         text = self.code_genProgram()
@@ -320,7 +310,6 @@ class CGen(object):
     def code_genClass(self, c):
 
         ret = ""
-
         hasSeenInit = False
 
         for feature in c.features:
@@ -331,13 +320,10 @@ class CGen(object):
             if c.className == "init":
                 hasSeenInit = True
 
-        
         if not hasSeenInit:
             ret += self.code_genDefaultInit(c)
 
-
         return ret
-
 
     def code_genDefaultInit(self, c: 'Class'):
         ret = self.genMethodEntry()
@@ -361,23 +347,15 @@ class CGen(object):
             else:
                 ret += TAB + "movq $0, {}(%rbp)".format(offset) + NEWLINE
 
-        
-
-
         ret += self.genMethodExit()
 
         return c.className + UNDERSCORE + INIT + COLON + NEWLINE + ret + NEWLINE
 
-
-
-
     def code_genMethod(self, c: 'Class', method):
-
         if c.className in self.predefinedClassName:
             return ""
 
         params_offset = {}
-
         ret = ""
         
         if method.methodName == c.className:
@@ -399,8 +377,6 @@ class CGen(object):
         ret += TAB + "movq %rdi, -8(%rbp)" + NEWLINE
 
         if num_params > 0:
-            # size_for_params = align(self.wordsize * num_params, ALIGNMENT_SIZE)
-            # ret += TAB + "subq %rsp, {}".format(str(self.wordsize * (num_params)) + NEWLINE
             for i in range(1, num_params):
                 if i < 6:
                     ret += TAB + "movq {}, -{}(%rbp)".format(str(self.param_regs[i]), str(i * self.wordsize)) + NEWLINE
@@ -410,9 +386,7 @@ class CGen(object):
 
                 params_offset[method.formalParams[i].id] = -i
 
-        
-        ret += self.code_genExpr(c, params_offset, method.bodyExpr)
-
+        ret += self.code_genExpr(c, method, params_offset, method.bodyExpr)
 
         # restore stack
         if stack_size > 0:
@@ -420,29 +394,64 @@ class CGen(object):
         else:
             ret += TAB + "addq $16, %rsp" + NEWLINE
 
-
         ret += self.genMethodExit()
 
         return label + COLON + NEWLINE + ret + NEWLINE
 
+    def code_genExpr(self, c, method, params_offset, expr):
+        if isinstance(expr, AssignmentExpr):
+            return self.code_genAssignment(c, method, params_offset, expr)
+        elif isinstance(expr, Dispatch):
+            return self.code_genDispatch(c, method, params_offset, expr)
+        elif isinstance(expr, String):
+            return self.code_genString(c, method, params_offset, expr)
+        elif isinstance(expr, Integer):
+            return self.code_genInteger(c, method, params_offset, expr)
+        elif isinstance(expr, If):
+            return self.code_genIf(c, method, params_offset, expr)
+        elif isinstance(expr, Boolean):
+            return self.code_genBoolean(c, method, params_offset, expr)
 
     
-    def code_genExpr(self, c, params_offset, expr):
-        if isinstance(expr, AssignmentExpr):
-            return self.code_genAssignment(c, params_offset, expr)
-        elif isinstance(expr, Dispatch):
-            return self.code_genDispatch(c, params_offset, expr)
-        elif isinstance(expr, String):
-            return self.code_genString(c, params_offset, expr)
 
 
+
+    def code_genIf(self, c, method, params_offset, ifExpr):
+
+        seqNum = self.genCondSeq()
+        thn_label = c.className + "."  + method.methodName + ".then." + str(seqNum)
+        els_label = c.className + "."  + method.methodName + ".else." + str(seqNum)
+        end_label = c.className + "."  + method.methodName + ".end." + str(seqNum)
+
+        cnd = self.code_genExpr(c, method, params_offset, ifExpr.cnd)
+        thn = self.code_genExpr(c, method, params_offset, ifExpr.thn)
+        els = self.code_genExpr(c, method, params_offset, ifExpr.els)
+
+
+        ret = TAB + "cmpq $1, %rax" + NEWLINE
+        ret += TAB + "jne {}".format(els_label) + NEWLINE
+        ret += thn + NEWLINE
+        ret += TAB + "jmp {}".format(end_label) + NEWLINE
+        ret += NEWLINE
+        ret += els_label + COLON + NEWLINE
+        ret += els + NEWLINE
+        ret += end_label + COLON + NEWLINE
+
+
+        return cnd + ret
+
+    def code_genBoolean(self, c, method, params_offset, booleanExpr):
+        if booleanExpr.bval:
+            return TAB + "movq $1, %rax" + NEWLINE
         
-    def code_genString(self, c, params_offset, stringExpr):
+        return TAB + "movq $0, %rax" + NEWLINE
+
+    def code_genString(self, c, method, params_offset, stringExpr):
 
         if stringExpr.sval in self.stringtable:
             string_lab = self.stringtable[stringExpr.sval]
         else:
-            seq = self.getSeqNum()
+            seq = self.genSeqNum()
             string_lab = "string_const" + str(seq)
             int_lab = "int_const" + str(seq)
             self.stringtable[stringExpr.sval] = string_lab
@@ -454,49 +463,59 @@ class CGen(object):
 
         return ret
 
+    def code_genInteger(self, c, method, params_offset, intExpr):
+        if intExpr.ival in self.inttable:
+            int_label = self.inttable[str(intExpr.ival)]
+        else:
+            seq = self.genSeqNum()
+            int_label = "int_const" + str(seq)
+            self.inttable[str(intExpr.ival)] = int_label
 
-    def code_genDispatch(self, c: 'Class', params_offset, dispatchExpr):
+        ret = TAB + "leaq {}(%rip), %rax".format(int_label) + NEWLINE
+        ret += TAB + "addq ${}, %rax".format(INTCONST_VALOFFSET) + NEWLINE
+
+        return ret
+
+    def code_genDispatch(self, c: 'Class', method, params_offset, dispatchExpr):
         ret = ""
 
         if isinstance(dispatchExpr.objExpr, Self):
-            ret += self.gen_selfObjAddress()   # obj address is in rdi
+            # push self object into %rdi
+            ret += self.gen_selfObjAddress()   
+        else:
+            ret += self.code_genExpr(c, method, params_offset, dispatchExpr.objExpr)
+            ret += TAB + "movq %rax, %rdi" + NEWLINE
 
-            methodName = dispatchExpr.methodName
+        methodName = dispatchExpr.methodName
+        arg_len = len(dispatchExpr.arguments)
+        
+        stack_count = 0
+        for i, arg in reversed(list(enumerate(dispatchExpr.arguments))):
+            ret += self.code_genExpr(c, method, params_offset, arg)
+            if i < 5:   
+                # first reg is saved for object (could be SELF or other type)
+                ret += TAB + "movq %rax, {}".format(self.param_regs[i + 1]) + NEWLINE
+            else:
+                ret += TAB + "pushq %rax" + NEWLINE
+                stack_count += 1
 
-            arg_len = len(dispatchExpr.arguments)
-            
-            stack_count = 0
-            for i, arg in reversed(list(enumerate(dispatchExpr.arguments))):
-                ret += self.code_genExpr(c, params_offset, arg)
-                if i < 5:   
-                    # first reg is saved for SELF object
-                    ret += TAB + "movq %rax, {}".format(self.param_regs[i + 1]) + NEWLINE
-                else:
-                    ret += TAB + "pushq %rax" + NEWLINE
-                    stack_count += 1
+        # we will use r10 to store to vtable address
+        ret += TAB + "movq {}(%rdi), {}".format(DISP_OFFSET, DISP_FUNC_REG) + NEWLINE
 
-            # we will use r10 to store to vtable address
-            ret += TAB + "movq {}(%rdi), {}".format(DISP_OFFSET, DISP_FUNC_REG) + NEWLINE
+        # get the function offset from dispatch table
+        offset = self.dispatchTable[c.className][methodName]['offset']
+        
+        # use offset to get the appropriate function
+        ret += TAB + "movq {}({}), {}".format(str(offset), DISP_FUNC_REG, DISP_FUNC_REG) + NEWLINE
 
-            # get the function offset from dispatch table
-            offset = self.dispatchTable[c.className][methodName]['offset']
-            
-            # use offset to get the appropriate function
-            ret += TAB + "movq {}({}), {}".format(str(offset), DISP_FUNC_REG, DISP_FUNC_REG) + NEWLINE
+        ret += TAB + "callq* {}".format(DISP_FUNC_REG) + NEWLINE
 
-            ret += TAB + "callq* {}".format(DISP_FUNC_REG) + NEWLINE
+        while stack_count > 0:
+            ret += TAB + "popq %rax" + NEWLINE
 
+        return ret
 
-            # ret += TAB + "callq {}_{}".format(c.className, methodName) + NEWLINE
-
-            while stack_count > 0:
-                ret += TAB + "popq %rax" + NEWLINE
-
-            
-            return ret
-
-    def code_genAssignment(self, c: 'Class', params_offset, assignExpr):
-
+    def code_genAssignment(self, c: 'Class', method, params_offset, assignExpr):
         ret = ""
 
         lhs = assignExpr.id
@@ -513,12 +532,9 @@ class CGen(object):
             ret += TAB + "movq -8(%rbp), {}".format(OBJ_ADDR_REG) + NEWLINE
             ret += TAB + "movq %rax, {}({})",format(str(attr_offset), OBJ_ADDR_REG) + NEWLINE
 
-        
         return ret
 
-
     def gen_selfObjAddress(self):
-
         return TAB + "movq -8(%rbp), {}".format(OBJ_ADDR_REG) + NEWLINE
 
     def genMethodEntry(self):
@@ -539,7 +555,7 @@ if __name__ == "__main__":
 
     parser = make_parser()
 
-    file_name = "hello_world"
+    file_name = "if"
 
 
     with open("Tests/" + file_name + ".cl") as file:
@@ -555,5 +571,8 @@ if __name__ == "__main__":
 
     print(code)
     # print(cgen.attrtable)
+    # print()
     # print(cgen.dispatchTable)
+    # print()
+    # print(cgen.prototypes)
     

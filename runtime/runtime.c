@@ -16,9 +16,43 @@ print_int(int64_t i)
     printf("%" PRId64, i);
 }
 
+static int
+runtime_getline(char s[], int lim)
+{
+    int c, i;
+
+    i = 0;
+
+    while (--lim > 0 && (c = getchar()) != EOF && c != '\n')
+    {
+        s[i++] = c;
+    }
+
+    if (c == '\n') 
+    {
+        s[i++] = c;
+    }
+
+    s[i] = '\0';
+
+    return i;
+}
+
 char* 
 IO_in_string()
 {
+    int max = 256;
+
+    char *buffer = (char*) malloc(max);
+
+    if (buffer == NULL) {
+        return NULL;
+    }
+
+    if (runtime_getline(buffer, max) > 0) {
+        return buffer;
+    }
+
     return NULL;
 }
 

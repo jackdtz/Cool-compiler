@@ -27,12 +27,26 @@ DOT = "."
 NEWLINE = "\n"
 UNDERSCORE = "_"
 COLON = ":"
-WORD = ".word"
+WORD = ".quad"
 ASCIZ = ".asciz"
-ALIGN = ".aligh"
+ALIGN = ".align"
 GLOBAL = ".globl"
 PROTOTYPE_SUFFIX = "protoObj"
 DISPATCH_TABLE = "dispatch_table"
 INIT = "init"
 OBJTABLE = "class_objTab"
 OBJ_ADDR_REG = "%rdi"
+
+
+
+TAG_OFFSET = '0'
+SIZE_OFFSET = '8'
+DISP_OFFSET = '16'
+ATTR_OFFSET = '24'
+
+DISP_FUNC_REG = "%r10"
+
+
+STRCONST_STROFFSET = 32
+
+ALIGNMENT_SIZE = 16

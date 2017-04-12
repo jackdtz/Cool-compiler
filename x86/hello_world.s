@@ -33,7 +33,7 @@ String_protoObj:
     .quad    5
     .quad    String_dispatch_table
     .quad    0
-    .asciz   ""
+    .asciz    ""
 
 Int_protoObj:
     .quad    3
@@ -52,9 +52,13 @@ Main_protoObj:
     .quad    3
     .quad    Main_dispatch_table
 
-Object_dispatch_table:
+IO_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
+    .quad    IO_out_string
+    .quad    IO_out_int
+    .quad    _IO_in_string
+    .quad    _IO_in_int
 
 String_dispatch_table:
     .quad    Object_abort
@@ -72,19 +76,15 @@ Main_dispatch_table:
     .quad    _IO_in_int
     .quad    Main_main
 
-IO_dispatch_table:
+Int_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
-    .quad    IO_out_string
-    .quad    IO_out_int
-    .quad    _IO_in_string
-    .quad    _IO_in_int
+
+Object_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
 
 Bool_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
-
-Int_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
 int_const1:
@@ -179,16 +179,14 @@ Bool_init:
 Main_main:
     pushq %rbp
     movq %rsp, %rbp
-    subq $16, %rsp
-    movq %rdi, 0(%rbp)
-    movq 0(%rbp), %rdi
+    subq $8, %rsp
+    movq %rdi, -8(%rbp)
+    movq -8(%rbp), %rdi
     leaq string_const1(%rip), %rax
-    addq $32, %rax
     movq %rax, %rsi
     movq 16(%rdi), %r10
     movq 16(%r10), %r10
-    callq *%r10
-    addq $16, %rsp
+    callq* %r10
     leave
     ret
 

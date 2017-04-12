@@ -2,6 +2,7 @@ from cool_ast import *
 from cool_global import *
 from collections import OrderedDict
 from operator import itemgetter
+from utilities import *
 
 
 
@@ -20,17 +21,25 @@ class CGen(object):
 
         self.prototypes = OrderedDict()
         self.dispatchTable = {}
-        self.classObjTab = []
+        self.methodList = []
 
+        self.param_regs = ['%rdi', '%rsi', '%rdx', '%rcx', '%r8', '%r9']
+        self.predefinedClassName = ['Object', 'IO', 'Int', 'String', 'Bool']
+        self.rt_defined_methods = ['IO_in_int', 'IO_in_string']
+        
         self.inttable = {}
         self.stringtable = {}
         self.booltable = {}
         self.tagtable = {}
 
-        self.param_regs = ['%rdi', '%rsi', '%rdx', '%rcx', '%r8', '%r9']
-        self.predefinedClassName = ['Object', 'IO', 'Int', 'String', 'Bool']
-        
-        
+
+        self.initialize()
+
+    def initialize(self):
+        seq = self.getSeqNum()
+        self.inttable['0'] = "int_const" + str(seq)
+        self.stringtable[''] = "string_const" + str(seq)
+
 
     def genTag(self):
         # generate prime number for class tag
@@ -40,6 +49,15 @@ class CGen(object):
     def getSeqNum(self):
         self.seq += 1
         return self.seq
+
+    def genGloDirectives(self):
+
+        ret = "\n"
+        for name in self.methodList:
+            ret += TAB + GLOBAL + TAB + name + NEWLINE
+
+        return ret
+
 
 
     def getPredeinedClasses(self):
@@ -96,7 +114,7 @@ class CGen(object):
             prototype.append(tag)         # tag
 
             attributes = [f for f in c.features if isinstance(f, FeatureAttribute)]
-            prototype.append(len(attributes) + 1)   # size
+            prototype.append(len(attributes) + 3)   # size
 
             dispatchTab_lab = c.className + UNDERSCORE + DISPATCH_TABLE
             prototype.append(dispatchTab_lab)
@@ -119,7 +137,8 @@ class CGen(object):
                         prototype.append(1 if attr.init.bval else 0)
                 elif attr.decType == 'String':
                     if not attr.init:
-                        prototype.append("") # string
+                        empty_string_label = self.stringtable['']
+                        prototype.append(empty_string_label) # string
                     else:
                         prototype.append("\"" + attr.init.sval + "\"")
                 
@@ -180,7 +199,17 @@ class CGen(object):
 
             sorted_methodInfos = sorted(methodInfos.items(), key=lambda value: value[1]['offset'])
 
-            value_str = NEWLINE.join([TAB + WORD + TAB + str(methodInfo['definedClassName']) + UNDERSCORE + str(methodName) for (methodName, methodInfo) in sorted_methodInfos])
+            disp_value = []
+            for (methodName, methodInfo) in sorted_methodInfos:
+                disp_method_name = str(methodInfo['definedClassName']) + UNDERSCORE + str(methodName)
+                if disp_method_name in self.rt_defined_methods:
+                    disp_method_name = UNDERSCORE + disp_method_name
+
+                
+                disp_value.append(TAB + WORD + TAB + disp_method_name)
+                self.methodList.append(disp_method_name)
+
+            value_str = NEWLINE.join(disp_value)
             ret += NEWLINE + className + UNDERSCORE + DISPATCH_TABLE + COLON + NEWLINE + value_str + NEWLINE
 
         return ret
@@ -207,11 +236,11 @@ class CGen(object):
     def code_genIntConsts(self):
         int_consts = []
 
-        for int_str, label in self.inttable.items():
-            int_tag = str(self.tagtable['Int'])
-            size = '4'
-            dispathTable = "Int_dispatch_table"
+        int_tag = str(self.tagtable['Int'])
+        size = '4'
+        dispathTable = "Int_dispatch_table"
 
+        for int_str, label in self.inttable.items():
             const = [
                 TAB + WORD + TAB + int_tag + NEWLINE,
                 TAB + WORD + TAB + size + NEWLINE,
@@ -221,6 +250,7 @@ class CGen(object):
 
             int_consts.append(label + COLON + NEWLINE + "".join(const))
 
+
         return NEWLINE.join(int_consts)
 
         
@@ -229,11 +259,14 @@ class CGen(object):
     def codeg_genStringConsts(self):
 
         string_consts = []
+        string_tag = str(self.tagtable['String'])
+        size = '6'
+        dispathTable = "String_dispatch_table"
+
         for string, label in self.stringtable.items():
-            string_tag = str(self.tagtable['String'])
-            size = '6'
             len_const = self.inttable[str(len(string))]
-            dispathTable = "String_dispatch_table"
+
+            string = '\"\"' if string == '' else string
 
             const = [
                 TAB + WORD + TAB + string_tag + NEWLINE,
@@ -246,33 +279,33 @@ class CGen(object):
 
             string_consts.append(label + COLON + NEWLINE + "".join(const))
 
+       
+
 
         return NEWLINE.join(string_consts)
-
-
-            
-
 
 
 #######################################################################################################################
 
 
     def code_gen(self):
-        data = ".data" + NEWLINE
+        data_header = ".data" + NEWLINE
 
         self.collectGlobalData()
-        data += self.code_genClassObjTable()
+        data = self.code_genClassObjTable()
         data += self.code_genProtoTable()
         data += self.code_genDispatchTable()
 
+        globl_directives = self.genGloDirectives()
 
-        text = ".text" + NEWLINE
-        text += self.code_genProgram()
+
+        text_header = ".text" + NEWLINE
+        text = self.code_genProgram()
 
         data += self.code_genIntConsts() + NEWLINE
         data += self.codeg_genStringConsts() + NEWLINE
 
-        return data + NEWLINE + text
+        return data_header + globl_directives + data +  NEWLINE + text_header + text + NEWLINE
 
 
     def code_genProgram(self):
@@ -320,11 +353,13 @@ class CGen(object):
             offset = v['offset']
 
             if ty == 'String':
-                ret += TAB + "movq \'\', {}(%rbp)".format(offset) + NEWLINE
+                empty_string_label = self.stringtable['']
+                ret += TAB + "leaq {}(%rip), %rax".format(empty_string_label) + NEWLINE
+                ret += TAB + "movq %rax, {}(%rbp)".format(offset) + NEWLINE
             elif ty == 'Bool' or ty == 'Int':
-                ret += TAB + "movq 0, {}(%rbp)".format(offset) + NEWLINE
+                ret += TAB + "movq $0, {}(%rbp)".format(offset) + NEWLINE
             else:
-                ret += TAB + "movq 0, {}(%rbp)".format(offset) + NEWLINE
+                ret += TAB + "movq $0, {}(%rbp)".format(offset) + NEWLINE
 
         
 
@@ -354,12 +389,19 @@ class CGen(object):
 
         num_params = len(method.formalParams)
 
-        ret += TAB + "subq ${}, %rsp".format(str(self.wordsize)) + NEWLINE
-        ret += TAB + "movq %rdi, -8(%rbp)" + NEWLINE
+        stack_size = align(max(0, num_params + 1 - 6) * self.wordsize, ALIGNMENT_SIZE)
+
+        if stack_size > 0:
+            ret += TAB + "subq ${}, %rsp".format(str(stack_size * self.wordsize)) + NEWLINE
+        else:
+            ret += TAB + "subq $16, %rsp" + NEWLINE
+
+        ret += TAB + "movq %rdi, 0(%rbp)" + NEWLINE
 
         if num_params > 0:
-            ret += TAB + "subq %rsp, {}".format(str(self.wordsize * num_params)) + NEWLINE
-            for i in range(num_params):
+            # size_for_params = align(self.wordsize * num_params, ALIGNMENT_SIZE)
+            # ret += TAB + "subq %rsp, {}".format(str(self.wordsize * (num_params)) + NEWLINE
+            for i in range(1, num_params):
                 if i < 6:
                     ret += TAB + "movq {}, -{}(%rbp)".format(str(self.param_regs[i]), str(i * self.wordsize)) + NEWLINE
                 else:
@@ -370,6 +412,15 @@ class CGen(object):
 
         
         ret += self.code_genExpr(c, params_offset, method.bodyExpr)
+
+
+        # restore stack
+        if stack_size > 0:
+            ret += TAB + "addq ${}, %rsp".format(str(stack_size * self.wordsize)) + NEWLINE
+        else:
+            ret += TAB + "addq $16, %rsp" + NEWLINE
+
+
         ret += self.genMethodExit()
 
         return label + COLON + NEWLINE + ret + NEWLINE
@@ -397,7 +448,11 @@ class CGen(object):
             self.stringtable[stringExpr.sval] = string_lab
             self.inttable[str(len(stringExpr.sval))] = int_lab 
 
-        return TAB + "leaq {}(%rip), %rax".format(string_lab) + NEWLINE
+        # the actual string is located at offset 32, the fifth field
+        ret = TAB + "leaq {}(%rip), %rax".format(string_lab) + NEWLINE
+        ret += TAB + "addq ${}, %rax".format(STRCONST_STROFFSET) + NEWLINE
+
+        return ret
 
 
     def code_genDispatch(self, c: 'Class', params_offset, dispatchExpr):
@@ -420,8 +475,19 @@ class CGen(object):
                     ret += TAB + "pushq %rax" + NEWLINE
                     stack_count += 1
 
+            # we will use r10 to store to vtable address
+            ret += TAB + "movq {}(%rdi), {}".format(DISP_OFFSET, DISP_FUNC_REG) + NEWLINE
 
-            ret += TAB + "callq {}_{}".format(c.className, methodName) + NEWLINE
+            # get the function offset from dispatch table
+            offset = self.dispatchTable[c.className][methodName]['offset']
+            
+            # use offset to get the appropriate function
+            ret += TAB + "movq {}({}), {}".format(str(offset), DISP_FUNC_REG, DISP_FUNC_REG) + NEWLINE
+
+            ret += TAB + "callq* {}".format(DISP_FUNC_REG) + NEWLINE
+
+
+            # ret += TAB + "callq {}_{}".format(c.className, methodName) + NEWLINE
 
             while stack_count > 0:
                 ret += TAB + "popq %rax" + NEWLINE
@@ -444,7 +510,7 @@ class CGen(object):
         if lhs in self.attrtable[c.className]:
             attr_offset = self.attrtable[c.className][lhs]
 
-            ret += TAB + "movq -4(%rbp), {}".format(OBJ_ADDR_REG) + NEWLINE
+            ret += TAB + "movq -8(%rbp), {}".format(OBJ_ADDR_REG) + NEWLINE
             ret += TAB + "movq %rax, {}({})",format(str(attr_offset), OBJ_ADDR_REG) + NEWLINE
 
         
@@ -453,7 +519,7 @@ class CGen(object):
 
     def gen_selfObjAddress(self):
 
-        return TAB + "movq -8(%rbp), {}".format(OBJ_ADDR_REG) + NEWLINE
+        return TAB + "movq 0(%rbp), {}".format(OBJ_ADDR_REG) + NEWLINE
 
     def genMethodEntry(self):
         return TAB + "pushq %rbp" + NEWLINE + TAB + "movq %rsp, %rbp" + NEWLINE
@@ -473,7 +539,10 @@ if __name__ == "__main__":
 
     parser = make_parser()
 
-    with open("Tests/hello_world.cl") as file:
+    file_name = "hello_world"
+
+
+    with open("Tests/" + file_name + ".cl") as file:
             cool_program_code = file.read()
 
     parse_result = parser.parse(cool_program_code)
@@ -481,17 +550,10 @@ if __name__ == "__main__":
     cgen = CGen(parse_result)
     code = cgen.code_gen()
 
+
+    # with open("x86/" + filena )
+
     print(code)
-    print(cgen.attrtable)
-    print(cgen.dispatchTable)
+    # print(cgen.attrtable)
+    # print(cgen.dispatchTable)
     
-
-        
-        
-        
-
-
-        
-
-
-        

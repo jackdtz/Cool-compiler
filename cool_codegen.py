@@ -481,7 +481,10 @@ class CGen(object):
         object_name = newExpr.objType
 
         ret = TAB + "leaq {}_protoObj(%rip), %rdi".format(object_name) + NEWLINE
-        ret += TAB + "callq Object_copy" + NEWLINE
+        ret += self.genFuncCall("Object_copy") + NEWLINE
+        # ret += TAB + "callq Object_copy" + NEWLINE
+        ret += TAB + "movq %rax, %rdi" + NEWLINE
+        ret += self.genFuncCall("{}_init".format(object_name)) + NEWLINE
 
         return ret, object_name
 

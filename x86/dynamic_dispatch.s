@@ -72,17 +72,6 @@ Object_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
 
-String_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
-    .quad    String_length
-    .quad    String_concat
-    .quad    String_substr
-
-Bool_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
-
 B_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
@@ -100,6 +89,17 @@ IO_dispatch_table:
     .quad    IO_out_int
     .quad    _IO_in_string
     .quad    _IO_in_int
+
+Bool_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
+
+String_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
+    .quad    String_length
+    .quad    String_concat
+    .quad    String_substr
 
 Main_dispatch_table:
     .quad    Object_abort
@@ -123,17 +123,17 @@ A_dispatch_table:
 Int_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
-int_const5:
-    .quad    3
-    .quad    4
-    .quad    Int_dispatch_table
-    .quad    19
-
 int_const4:
     .quad    3
     .quad    4
     .quad    Int_dispatch_table
     .quad    8
+
+int_const5:
+    .quad    3
+    .quad    4
+    .quad    Int_dispatch_table
+    .quad    19
 
 int_const1:
     .quad    3
@@ -165,20 +165,20 @@ string_const2:
     .asciz    "init A"
     .align    8
 
-string_const3:
-    .quad    2
-    .quad    6
-    .quad    String_dispatch_table
-    .quad    int_const5
-    .asciz    "toString A called"
-    .align    8
-
 string_const5:
     .quad    2
     .quad    6
     .quad    String_dispatch_table
     .quad    int_const5
     .asciz    "toString B called"
+    .align    8
+
+string_const3:
+    .quad    2
+    .quad    6
+    .quad    String_dispatch_table
+    .quad    int_const5
+    .asciz    "toString A called"
     .align    8
 
 
@@ -266,9 +266,9 @@ String_init:
     popq %rsi
     popq %rcx
     popq %rdx
+    movq $0, 24(%rbp)
     leaq string_const1(%rip), %rax
     movq %rax, 32(%rbp)
-    movq $0, 24(%rbp)
     popq %r14
     popq %r13
     popq %r12
@@ -526,7 +526,43 @@ Main_main:
     subq $16, %rsp
     movq %rdi, -40(%rbp)
     leaq B_protoObj(%rip), %rdi
+    pushq %rdx
+    pushq %rcx
+    pushq %rsi
+    pushq %rdi
+    pushq %r8
+    pushq %r9
+    pushq %r10
+    subq $8, %rsp
     callq Object_copy
+    addq $8, %rsp
+    popq %r10
+    popq %r9
+    popq %r8
+    popq %rdi
+    popq %rsi
+    popq %rcx
+    popq %rdx
+
+    movq %rax, %rdi
+    pushq %rdx
+    pushq %rcx
+    pushq %rsi
+    pushq %rdi
+    pushq %r8
+    pushq %r9
+    pushq %r10
+    subq $8, %rsp
+    callq B_init
+    addq $8, %rsp
+    popq %r10
+    popq %r9
+    popq %r8
+    popq %rdi
+    popq %rsi
+    popq %rcx
+    popq %rdx
+
     movq -40(%rbp), %rdi
     movq %rax, 24(%rdi)
 

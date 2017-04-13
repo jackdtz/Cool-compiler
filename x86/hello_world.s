@@ -53,10 +53,6 @@ Main_protoObj:
     .quad    3
     .quad    Main_dispatch_table
 
-Bool_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
-
 Main_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
@@ -81,6 +77,10 @@ Object_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
 
+Bool_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
+
 IO_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
@@ -88,17 +88,17 @@ IO_dispatch_table:
     .quad    IO_out_int
     .quad    _IO_in_string
     .quad    _IO_in_int
-int_const2:
-    .quad    3
-    .quad    4
-    .quad    Int_dispatch_table
-    .quad    22
-
 int_const1:
     .quad    3
     .quad    4
     .quad    Int_dispatch_table
     .quad    0
+
+int_const2:
+    .quad    3
+    .quad    4
+    .quad    Int_dispatch_table
+    .quad    22
 
 string_const1:
     .quad    2
@@ -201,9 +201,9 @@ String_init:
     popq %rsi
     popq %rcx
     popq %rdx
+    movq $0, 24(%rbp)
     leaq string_const1(%rip), %rax
     movq %rax, 32(%rbp)
-    movq $0, 24(%rbp)
     popq %r14
     popq %r13
     popq %r12

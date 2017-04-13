@@ -16,6 +16,10 @@ class_objTab:
     .quad    Int_init
     .quad    Bool_protoObj
     .quad    Bool_init
+    .quad    A_protoObj
+    .quad    A_init
+    .quad    B_protoObj
+    .quad    B_init
     .quad    Main_protoObj
     .quad    Main_init
 
@@ -48,10 +52,46 @@ Bool_protoObj:
     .quad    Bool_dispatch_table
     .quad    0
 
-Main_protoObj:
+A_protoObj:
     .quad    5
     .quad    3
+    .quad    A_dispatch_table
+
+B_protoObj:
+    .quad    6
+    .quad    3
+    .quad    B_dispatch_table
+
+Main_protoObj:
+    .quad    7
+    .quad    4
     .quad    Main_dispatch_table
+    .quad    -1
+
+Object_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
+
+String_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
+    .quad    String_length
+    .quad    String_concat
+    .quad    String_substr
+
+Bool_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
+
+B_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
+    .quad    IO_out_string
+    .quad    IO_out_int
+    .quad    _IO_in_string
+    .quad    _IO_in_int
+    .quad    B_init
+    .quad    B_toString
 
 IO_dispatch_table:
     .quad    Object_abort
@@ -61,13 +101,6 @@ IO_dispatch_table:
     .quad    _IO_in_string
     .quad    _IO_in_int
 
-String_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
-    .quad    String_length
-    .quad    String_concat
-    .quad    String_substr
-
 Main_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
@@ -75,49 +108,44 @@ Main_dispatch_table:
     .quad    IO_out_int
     .quad    _IO_in_string
     .quad    _IO_in_int
-    .quad    Main_whileloop
     .quad    Main_main
 
-Object_dispatch_table:
+A_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
+    .quad    IO_out_string
+    .quad    IO_out_int
+    .quad    _IO_in_string
+    .quad    _IO_in_int
+    .quad    A_init
+    .quad    A_toString
 
 Int_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
-
-Bool_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
-int_const3:
+int_const5:
     .quad    3
     .quad    4
     .quad    Int_dispatch_table
-    .quad    0
-
-int_const6:
-    .quad    3
-    .quad    4
-    .quad    Int_dispatch_table
-    .quad    10
+    .quad    19
 
 int_const4:
     .quad    3
     .quad    4
     .quad    Int_dispatch_table
-    .quad    2
+    .quad    8
 
-int_const5:
+int_const1:
     .quad    3
     .quad    4
     .quad    Int_dispatch_table
-    .quad    1
+    .quad    0
 
 string_const1:
     .quad    2
     .quad    6
     .quad    String_dispatch_table
-    .quad    int_const3
+    .quad    int_const1
     .asciz    ""
     .align    8
 
@@ -126,7 +154,31 @@ string_const4:
     .quad    6
     .quad    String_dispatch_table
     .quad    int_const4
-    .asciz    ""
+    .asciz    "init B"
+    .align    8
+
+string_const2:
+    .quad    2
+    .quad    6
+    .quad    String_dispatch_table
+    .quad    int_const4
+    .asciz    "init A"
+    .align    8
+
+string_const3:
+    .quad    2
+    .quad    6
+    .quad    String_dispatch_table
+    .quad    int_const5
+    .asciz    "toString A called"
+    .align    8
+
+string_const5:
+    .quad    2
+    .quad    6
+    .quad    String_dispatch_table
+    .quad    int_const5
+    .asciz    "toString B called"
     .align    8
 
 
@@ -214,9 +266,9 @@ String_init:
     popq %rsi
     popq %rcx
     popq %rdx
-    movq $0, 24(%rbp)
     leaq string_const1(%rip), %rax
     movq %rax, 32(%rbp)
+    movq $0, 24(%rbp)
     popq %r14
     popq %r13
     popq %r12
@@ -294,7 +346,7 @@ Bool_init:
 
 
 
-Main_whileloop:
+A_init:
     pushq %rbp
     movq %rsp, %rbp
     pushq %rbx
@@ -303,26 +355,13 @@ Main_whileloop:
     pushq %r14
     subq $16, %rsp
     movq %rdi, -40(%rbp)
-    movq %rsi, -48(%rbp)
-Main.whileloop.loop_start.2:
-    movq -48(%rbp), %rax
-    pushq %rax
-    leaq int_const3(%rip), %rax
-    addq $24, %rax
-    movq (%rax), %rax
-    popq %rdi
-    cmpq %rax, %rdi
-    setg %al
-    movzbq %al, %rax
-
-    cmpq $1, %rax
-    jne Main.whileloop.loop_end.2
     movq -40(%rbp), %rax
     movq %rax, %rdi
-    movq -48(%rbp), %rax
+    leaq string_const2(%rip), %rax
+    addq $32, %rax
     movq %rax, %rsi
     movq 16(%rdi), %r10
-    movq 24(%r10), %r10
+    movq 16(%r10), %r10
     pushq %rdx
     pushq %rcx
     pushq %rsi
@@ -340,7 +379,67 @@ Main.whileloop.loop_start.2:
     popq %rsi
     popq %rcx
     popq %rdx
+    addq $16, %rsp
+    popq %r14
+    popq %r13
+    popq %r12
+    popq %rbx
+    leave
+    ret
 
+
+A_toString:
+    pushq %rbp
+    movq %rsp, %rbp
+    pushq %rbx
+    pushq %r12
+    pushq %r13
+    pushq %r14
+    subq $16, %rsp
+    movq %rdi, -40(%rbp)
+    movq -40(%rbp), %rax
+    movq %rax, %rdi
+    leaq string_const3(%rip), %rax
+    addq $32, %rax
+    movq %rax, %rsi
+    movq 16(%rdi), %r10
+    movq 16(%r10), %r10
+    pushq %rdx
+    pushq %rcx
+    pushq %rsi
+    pushq %rdi
+    pushq %r8
+    pushq %r9
+    pushq %r10
+    subq $8, %rsp
+    callq *%r10
+    addq $8, %rsp
+    popq %r10
+    popq %r9
+    popq %r8
+    popq %rdi
+    popq %rsi
+    popq %rcx
+    popq %rdx
+    addq $16, %rsp
+    popq %r14
+    popq %r13
+    popq %r12
+    popq %rbx
+    leave
+    ret
+
+
+
+B_init:
+    pushq %rbp
+    movq %rsp, %rbp
+    pushq %rbx
+    pushq %r12
+    pushq %r13
+    pushq %r14
+    subq $16, %rsp
+    movq %rdi, -40(%rbp)
     movq -40(%rbp), %rax
     movq %rax, %rdi
     leaq string_const4(%rip), %rax
@@ -365,21 +464,6 @@ Main.whileloop.loop_start.2:
     popq %rsi
     popq %rcx
     popq %rdx
-
-    movq -48(%rbp), %rax
-
-    push %rax
-    leaq int_const5(%rip), %rax
-    addq $24, %rax
-    movq (%rax), %rax
-
-    popq %rdi
-    subq %rax, %rdi
-    movq %rdi, %rax
-    movq %rax, -48(%rbp)
-
-    jmp Main.whileloop.loop_start.2
-Main.whileloop.loop_end.2:
     addq $16, %rsp
     popq %r14
     popq %r13
@@ -387,6 +471,49 @@ Main.whileloop.loop_end.2:
     popq %rbx
     leave
     ret
+
+
+B_toString:
+    pushq %rbp
+    movq %rsp, %rbp
+    pushq %rbx
+    pushq %r12
+    pushq %r13
+    pushq %r14
+    subq $16, %rsp
+    movq %rdi, -40(%rbp)
+    movq -40(%rbp), %rax
+    movq %rax, %rdi
+    leaq string_const5(%rip), %rax
+    addq $32, %rax
+    movq %rax, %rsi
+    movq 16(%rdi), %r10
+    movq 16(%r10), %r10
+    pushq %rdx
+    pushq %rcx
+    pushq %rsi
+    pushq %rdi
+    pushq %r8
+    pushq %r9
+    pushq %r10
+    subq $8, %rsp
+    callq *%r10
+    addq $8, %rsp
+    popq %r10
+    popq %r9
+    popq %r8
+    popq %rdi
+    popq %rsi
+    popq %rcx
+    popq %rdx
+    addq $16, %rsp
+    popq %r14
+    popq %r13
+    popq %r12
+    popq %rbx
+    leave
+    ret
+
 
 
 Main_main:
@@ -398,14 +525,16 @@ Main_main:
     pushq %r14
     subq $16, %rsp
     movq %rdi, -40(%rbp)
+    leaq B_protoObj(%rip), %rdi
+    callq Object_copy
+    movq -40(%rbp), %rdi
+    movq %rax, 24(%rdi)
+
     movq -40(%rbp), %rax
+    movq 24(%rax), %rax
     movq %rax, %rdi
-    leaq int_const6(%rip), %rax
-    addq $24, %rax
-    movq (%rax), %rax
-    movq %rax, %rsi
     movq 16(%rdi), %r10
-    movq 48(%r10), %r10
+    movq 56(%r10), %r10
     pushq %rdx
     pushq %rcx
     pushq %rsi
@@ -456,6 +585,7 @@ Main_init:
     popq %rsi
     popq %rcx
     popq %rdx
+    movq $0, 24(%rbp)
     popq %r14
     popq %r13
     popq %r12

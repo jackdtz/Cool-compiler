@@ -960,10 +960,10 @@ if __name__ == "__main__":
 
     parser = make_parser()
 
-    with open("Tests/bad2.cl") as file:
+    with open("Tests/dynamic_dispatch.cl") as file:
             cool_program_code = file.read()
 
     parse_result = parser.parse(cool_program_code)
     ret = parse_result.typecheck()
     if ret:
-        self.error("successful")
+        parse_result.error("successful")

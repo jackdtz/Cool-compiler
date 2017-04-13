@@ -72,7 +72,8 @@ class Type(object):
 
 
 class ObjectType(Type):
-    pass
+    def __str__(self):
+        return 'Object'
 
 
 class FuncType(Type):
@@ -81,31 +82,44 @@ class FuncType(Type):
         self.param_tys = param_tys
         self.ret_ty = ret_ty
 
+    def __str__(self):
+        return 'Func type'
+
 
 class PrimFuncType(Type):
-    pass
+    def __str__(self):
+        return 'PrimFuncType'
 
 
 class IntegerType(Type):
-    pass
+    def __str__(self):
+        return 'Int'
 
 
 class StringType(Type):
-    pass
+    def __str__(self):
+        return 'String'
 
 
 class BooleanType(Type):
-    pass
+    def __str__(self):
+        return 'Bool'
+    
 
 
 class SelfType(Type):
-    pass
+
+    def __str__(self):
+        return 'Self'
 
 
 class ClassType(Type):
     def __init__(self, name: str, parent=None):
         super().__init__(parent=parent)
         self.name = name
+
+    def __str__(self):
+        return self.name
 
 
 

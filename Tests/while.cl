@@ -4,6 +4,7 @@ class Main inherits IO {
        while x > 0 loop
        {
         out_int(x);
+        out_string("");
         x <- x - 1;
        }
        pool

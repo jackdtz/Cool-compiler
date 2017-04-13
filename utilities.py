@@ -32,8 +32,8 @@ class CGen_scope(object):
             if id in scope:
                 return scope[id]
 
-        exit("look up scope, {} not found".format(id))
-
+        return None
+        
     
     def lookupLocal(self, id):
         if not self.table:

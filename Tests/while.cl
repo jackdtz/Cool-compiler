@@ -1,8 +1,16 @@
 class Main inherits IO {
+
+   whileloop(x: Int) : Object{
+       while x > 0 loop
+       {
+        out_string("haha");
+        x <- x - 1;
+       }
+       pool
+   };
+
    main(): Object {
-    while true loop
-        out_string("haha")
-    pool
+     whileloop(10)
        
    };
 };

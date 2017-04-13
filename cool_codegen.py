@@ -368,34 +368,36 @@ class CGen(object):
 
         ret += self.genMethodEntry()
 
-        num_params = len(method.formalParams)
+        num_params = len(method.formalParams) + 1
 
-        stack_size = align(max(0, num_params + 1 - 6) * self.wordsize, ALIGNMENT_SIZE)
+        stack_size = align(num_params * self.wordsize, ALIGNMENT_SIZE)
 
-        if stack_size > 0:
-            ret += TAB + "subq ${}, %rsp".format(str(stack_size * self.wordsize)) + NEWLINE
-        else:
-            ret += TAB + "subq $8, %rsp" + NEWLINE
+        # if stack_size > 0:
+        #     ret += TAB + "subq ${}, %rsp".format(str(stack_size * self.wordsize)) + NEWLINE
 
-        ret += TAB + "movq %rdi, -40(%rbp)" + NEWLINE
+        ret += TAB + "subq ${}, %rsp".format(stack_size) + NEWLINE
 
         if num_params > 0:
-            for i in range(1, num_params):
+            for i in range(num_params):
                 if i < 6:
-                    ret += TAB + "movq {}, -{}(%rbp)".format(str(self.param_regs[i]), str(i * self.wordsize)) + NEWLINE
+                    source_reg = self.param_regs[i]
+                    target_offset = -(i + 5) * self.wordsize
+                    ret += TAB + "movq {}, {}(%rbp)".format(source_reg, target_offset) + NEWLINE
                 else:
-                    ret += TAB + "movq {}(%rbp), %rax".format(str(i + self.wordsize)) + NEWLINE
-                    ret += TAB + "movq %rax, -{}(%rbp)".format(str(i)) + NEWLINE
+                    target_offset = -(i + 5) * self.wordsize
+                    ret += TAB + "movq {}(%rbp), %rax".format(i + self.wordsize) + NEWLINE
+                    ret += TAB + "movq %rax, {}(%rbp)".format(target_offset) + NEWLINE
 
-                params_offset[method.formalParams[i].id] = -i
+                # offset always starts 32 bytes from the base pointer because they are used for storing callee save regs
+                if i == 0 : # self
+                    params_offset['self'] = -(i + 5) * self.wordsize
+                else:
+                    params_offset[method.formalParams[i - 1].id] = -(i + 5) * self.wordsize
 
         ret += self.code_genExpr(c, method, params_offset, method.bodyExpr)
 
         # restore stack
-        if stack_size > 0:
-            ret += TAB + "addq ${}, %rsp".format(str(stack_size * self.wordsize)) + NEWLINE
-        else:
-            ret += TAB + "addq $8, %rsp" + NEWLINE
+        ret += TAB + "addq ${}, %rsp".format(stack_size) + NEWLINE
 
         ret += self.genMethodExit()
 
@@ -422,14 +424,27 @@ class CGen(object):
             return self.code_genNot(c, method, params_offset, expr)
         elif isinstance(expr, Self):
             return self.code_genSelf(c, method, params_offset, expr)
+        elif isinstance(expr, Id):
+            return self.code_genId(c, method, params_offset, expr)
+        elif isinstance(expr, Block):
+            return self.code_genBlock(c, method, params_offset, expr)
+
+    def code_genBlock(self, c, method, params_offset, block):
+        return NEWLINE.join([self.code_genExpr(c, method, params_offset, e) for e in block.exprs])
+
+
 
     def code_genSelf(self, c, method, params_offset, selfExpr):
         return TAB + "movq -40(%rbp), %rax" + NEWLINE
     
     def code_genId(self, c, method, params_offset, idExpr):
-       pass 
+        if idExpr.id in params_offset:
+            offset = params_offset[idExpr.id]
+            return TAB + "movq {}(%rbp), %rax".format(offset) + NEWLINE
 
-        
+        exit("{} not in params_offset").format(idExpr.id)
+
+
         
     def code_genNot(self, c, method, params_offset, expr):
         if isinstance(expr, GreaterThan):
@@ -447,10 +462,6 @@ class CGen(object):
         else:
             exit("this should not happend - code genNode")
         
-
-        
-
-
     def code_genBinayArith(self, c, method, params_offset, expr):
         if isinstance(expr, Plus):
             op = "addq"
@@ -470,7 +481,8 @@ class CGen(object):
         ret += TAB + "push %rax" + NEWLINE
         ret += e2 + NEWLINE
         ret += TAB + "popq %rdi" + NEWLINE
-        ret += TAB + "{} %rdi, %rax".format(op) + NEWLINE
+        ret += TAB + "{} %rax, %rdi".format(op) + NEWLINE
+        ret += TAB + "movq %rdi, %rax" + NEWLINE
 
         return ret
 
@@ -500,8 +512,8 @@ class CGen(object):
         ret += TAB + "pushq %rax" + NEWLINE
         ret += e2
         ret += TAB + "popq %rdi" + NEWLINE
-        ret += TAB + "comp %rax, %rdi" + NEWLINE
-        ret += TAB + "set{} %al" + NEWLINE
+        ret += TAB + "cmpq %rax, %rdi" + NEWLINE
+        ret += TAB + "set{} %al".format(e) + NEWLINE
         ret += TAB + "movzbq %al, %rax" + NEWLINE
 
         return ret
@@ -579,9 +591,11 @@ class CGen(object):
             seq = self.genSeqNum()
             int_label = "int_const" + str(seq)
             self.inttable[str(intExpr.ival)] = int_label
-
+        
+        # get constant object address, then get content at offset
         ret = TAB + "leaq {}(%rip), %rax".format(int_label) + NEWLINE
         ret += TAB + "addq ${}, %rax".format(INTCONST_VALOFFSET) + NEWLINE
+        ret += TAB + "movq (%rax), %rax" + NEWLINE
 
         return ret
 

@@ -1,12 +1,13 @@
-class Let {
-    main() : Int {
-        let x : Int in
+class Main inherits IO {
+    main() : Object {
+        let x : Int <- 3 in
         {
-            x;
+            out_int(x);
             {let x : Int <- 1 in
-                x;
+                out_int(x);
             };
-            x;
+            out_int(x);
+
         }
     };
 };

@@ -285,6 +285,29 @@ class CGen(object):
         return NEWLINE.join(string_consts)
 
 
+    def code_genInitValue(self, ty):
+
+        ret = ""
+
+        if ty == "Int":
+            zero_label = self.inttable['0']
+            ret += TAB + "leaq {}(%rip), %rax".format(zero_label) + NEWLINE
+            ret += TAB + "addq {}, %rax".format(INTCONST_VALOFFSET) + NEWLINE
+            ret += TAB + "movq (%rax), %rax" + NEWLINE
+        elif ty == "String":
+            empty_label = self.stringtable['']
+            ret += TAB + "leaq {}(%rip), %rax".format(empty_label) + NEWLINE
+            ret += TAB + "addq {}, %rax".format(STRCONST_STROFFSET) + NEWLINE
+        elif ty == "Bool":
+            ret += TAB + "movq $0, %rax" + NEWLINE
+        
+
+        return ret
+        
+            
+
+
+
 #######################################################################################################################
 
     def code_gen(self):
@@ -377,10 +400,10 @@ class CGen(object):
 
         num_params = len(method.formalParams) + 1
 
-        stack_size = align(num_params * self.wordsize, ALIGNMENT_SIZE)
+        # this will be used to calculate the offset of local from base pointer
+        num_locals = num_params
 
-        # if stack_size > 0:
-        #     ret += TAB + "subq ${}, %rsp".format(str(stack_size * self.wordsize)) + NEWLINE
+        stack_size = align(num_params * self.wordsize, ALIGNMENT_SIZE)
 
         ret += TAB + "subq ${}, %rsp".format(stack_size) + NEWLINE
 
@@ -395,13 +418,14 @@ class CGen(object):
                     ret += TAB + "movq {}(%rbp), %rax".format(i + self.wordsize) + NEWLINE
                     ret += TAB + "movq %rax, {}(%rbp)".format(target_offset) + NEWLINE
 
-                # offset always starts 32 bytes from the base pointer because they are used for storing callee save regs
+                # offset always starts 32 bytes from the base pointer 
+                # since those 32 bytes are used for storing callee save regs content
                 if i == 0 : # self
                     self.scope.addId('self', -(i + 5) * self.wordsize)
                 else:
                     self.scope.addId(method.formalParams[i - 1].id, -(i + 5) * self.wordsize)
 
-        ret += self.code_genExpr(c, method, method.bodyExpr)
+        ret += self.code_genExpr(c, method, num_locals, method.bodyExpr)
 
         # restore stack
         ret += TAB + "addq ${}, %rsp".format(stack_size) + NEWLINE
@@ -412,41 +436,71 @@ class CGen(object):
 
         return label + COLON + NEWLINE + ret + NEWLINE
 
-    def code_genExpr(self, c, method, expr):
+    def code_genExpr(self, c, method, num_locals, expr):
         if isinstance(expr, AssignmentExpr):
-            return self.code_genAssignment(c, method, expr)
+            return self.code_genAssignment(c, method, num_locals, expr)
         elif isinstance(expr, Dispatch):
-            return self.code_genDispatch(c, method, expr)
+            return self.code_genDispatch(c, method, num_locals, expr)
         elif isinstance(expr, String):
-            return self.code_genString(c, method, expr)
+            return self.code_genString(c, method, num_locals, expr)
         elif isinstance(expr, Integer):
-            return self.code_genInteger(c, method, expr)
+            return self.code_genInteger(c, method, num_locals, expr)
         elif isinstance(expr, If):
-            return self.code_genIf(c, method, expr)
+            return self.code_genIf(c, method, num_locals, expr)
         elif isinstance(expr, Boolean):
-            return self.code_genBoolean(c, method, expr)
+            return self.code_genBoolean(c, method, num_locals, expr)
         elif isinstance(expr, While):
-            return self.code_genWhile(c, method, expr)
+            return self.code_genWhile(c, method, num_locals, expr)
         elif isinstance(expr, BinaryOp):
-            return self.code_genBinary(c, method, expr)
+            return self.code_genBinary(c, method, num_locals, expr)
         elif isinstance(expr, Not):
-            return self.code_genNot(c, method, expr)
+            return self.code_genNot(c, method, num_locals, expr)
         elif isinstance(expr, Self):
-            return self.code_genSelf(c, method, expr)
+            return self.code_genSelf(c, method, num_locals, expr)
         elif isinstance(expr, Id):
-            return self.code_genId(c, method, expr)
+            return self.code_genId(c, method, num_locals, expr)
         elif isinstance(expr, Block):
-            return self.code_genBlock(c, method, expr)
+            return self.code_genBlock(c, method, num_locals, expr)
+        elif isinstance(expr, Let):
+            return self.code_genLet(c, method, num_locals, expr)
 
-    def code_genBlock(self, c, method, block):
-        return NEWLINE.join([self.code_genExpr(c, method, e) for e in block.exprs])
+    
+    def code_genLet(self, c, method, num_locals, letExpr):
+
+        self.scope.enterScope()
+
+        decl_num = len(letExpr.declareVars)
+
+        # save space on the stack for let varaibles
+        ret = TAB + "subq ${}, %rsp".format(decl_num * self.wordsize) + NEWLINE
+
+        for i, varDecl in enumerate(letExpr.declareVars):
+            id = varDecl.id
+            offset =  -(i + num_locals + 5) * self.wordsize
+            self.scope.addId(id, offset)
+
+            if varDecl.init:
+                ret += self.code_genExpr(c, method, num_locals + decl_num, varDecl.init)
+            else:
+                ret += self.code_genInitValue(varDecl.decType)
+            
+            ret += TAB + "movq %rax, {}(%rbp)".format(offset) + NEWLINE
+
+        ret += self.code_genExpr(c, method, num_locals + decl_num, letExpr.bodyExpr)
+
+        self.scope.existScope()
+
+        return ret        
+
+    def code_genBlock(self, c, method, num_locals, block):
+        return NEWLINE.join([self.code_genExpr(c, method, num_locals, e) for e in block.exprs])
 
 
 
-    def code_genSelf(self, c, method, selfExpr):
+    def code_genSelf(self, c, method, num_locals, selfExpr):
         return TAB + "movq -40(%rbp), %rax" + NEWLINE
     
-    def code_genId(self, c, method, idExpr):
+    def code_genId(self, c, method, num_locals, idExpr):
         offset = self.scope.lookup(idExpr.id)
         if offset:
             return TAB + "movq {}(%rbp), %rax".format(offset) + NEWLINE
@@ -455,23 +509,23 @@ class CGen(object):
 
 
         
-    def code_genNot(self, c, method, expr):
+    def code_genNot(self, c, method, num_locals, expr):
         if isinstance(expr, GreaterThan):
-            return code_genExpr(self, c, method, LessEq(expr.e1, expr.e2))
+            return code_genExpr(self, c, method, num_locals, LessEq(expr.e1, expr.e2))
         elif isinstance(expr, GreaterEq):
-            return code_genExpr(self, c, method, LessThan(expr.e1, expr.e2))
+            return code_genExpr(self, c, method, num_locals, LessThan(expr.e1, expr.e2))
         elif isinstance(expr, Eq):
-            return code_genExpr(self, c, method, NotEq(expr.e1, expr.e2))
+            return code_genExpr(self, c, method, num_locals, NotEq(expr.e1, expr.e2))
         elif isinstance(expr, NotEq):
-            return code_genExpr(self, c, method, Eq(expr.e1, expr.e2))
+            return code_genExpr(self, c, method, num_locals, Eq(expr.e1, expr.e2))
         elif isinstance(expr, LessThan):
-            return code_genExpr(self, c, method, GreaterEq(expr.e1, expr.e2))
+            return code_genExpr(self, c, method, num_locals, GreaterEq(expr.e1, expr.e2))
         elif isinstance(expr, LessEq):
-            return code_genExpr(self, c, method, GreaterThan(expr.e1, expr.e2))
+            return code_genExpr(self, c, method, num_locals, GreaterThan(expr.e1, expr.e2))
         else:
             exit("this should not happend - code genNode")
         
-    def code_genBinayArith(self, c, method, expr):
+    def code_genBinayArith(self, c, method, num_locals, expr):
         if isinstance(expr, Plus):
             op = "addq"
         elif isinstance(expr, Minus):
@@ -483,8 +537,8 @@ class CGen(object):
             print("ignore division for now")
             pass
 
-        e1 = self.code_genExpr(c, method, expr.e1)
-        e2 = self.code_genExpr(c, method, expr.e2)
+        e1 = self.code_genExpr(c, method, num_locals, expr.e1)
+        e2 = self.code_genExpr(c, method, num_locals, expr.e2)
 
         ret = e1 + NEWLINE
         ret += TAB + "push %rax" + NEWLINE
@@ -495,10 +549,10 @@ class CGen(object):
 
         return ret
 
-    def code_genBinary(self, c, method, expr):
+    def code_genBinary(self, c, method, num_locals, expr):
 
         if isinstance(expr, (Plus, Minus, Multiply, Divide)):
-            return self.code_genBinayArith(c, method, expr)
+            return self.code_genBinayArith(c, method, num_locals, expr)
         
         # condition
         if isinstance(expr, GreaterThan):
@@ -514,8 +568,8 @@ class CGen(object):
         elif isinstance(expr, NotEq):
             e = "ne"
 
-        e1 = self.code_genExpr(c, method, expr.e1)
-        e2 = self.code_genExpr(c, method, expr.e2)
+        e1 = self.code_genExpr(c, method, num_locals, expr.e1)
+        e2 = self.code_genExpr(c, method, num_locals, expr.e2)
 
         ret = e1
         ret += TAB + "pushq %rax" + NEWLINE
@@ -527,15 +581,15 @@ class CGen(object):
 
         return ret
 
-    def code_genWhile(self, c, method, whileExpr):
+    def code_genWhile(self, c, method, num_locals, whileExpr):
 
         seqNum = self.genSeqNum()
 
         begin_label = c.className + "." + method.methodName + ".loop_start." + str(seqNum)
         end_label = c.className + "." + method.methodName + ".loop_end." + str(seqNum)
 
-        cnd = self.code_genExpr(c, method, whileExpr.condition)
-        body = self.code_genExpr(c, method, whileExpr.bodyExpr)
+        cnd = self.code_genExpr(c, method, num_locals, whileExpr.condition)
+        body = self.code_genExpr(c, method, num_locals, whileExpr.bodyExpr)
 
         ret = begin_label + COLON + NEWLINE
         ret += cnd + NEWLINE
@@ -549,15 +603,15 @@ class CGen(object):
         return ret
         
     
-    def code_genIf(self, c, method, ifExpr):
+    def code_genIf(self, c, method, num_locals, ifExpr):
 
         seqNum = self.genCondSeq()
         els_label = c.className + "."  + method.methodName + ".else." + str(seqNum)
         end_label = c.className + "."  + method.methodName + ".end." + str(seqNum)
 
-        cnd = self.code_genExpr(c, method, ifExpr.cnd)
-        thn = self.code_genExpr(c, method, ifExpr.thn)
-        els = self.code_genExpr(c, method, ifExpr.els)
+        cnd = self.code_genExpr(c, method, num_locals, ifExpr.cnd)
+        thn = self.code_genExpr(c, method, num_locals, ifExpr.thn)
+        els = self.code_genExpr(c, method, num_locals, ifExpr.els)
 
         ret = TAB + "cmpq $1, %rax" + NEWLINE
         ret += TAB + "jne {}".format(els_label) + NEWLINE
@@ -570,13 +624,13 @@ class CGen(object):
 
         return cnd + ret
 
-    def code_genBoolean(self, c, method, booleanExpr):
+    def code_genBoolean(self, c, method, num_locals, booleanExpr):
         if booleanExpr.bval:
             return TAB + "movq $1, %rax" + NEWLINE
         
         return TAB + "movq $0, %rax" + NEWLINE
 
-    def code_genString(self, c, method, stringExpr):
+    def code_genString(self, c, method, num_locals, stringExpr):
 
         if stringExpr.sval in self.stringtable:
             string_lab = self.stringtable[stringExpr.sval]
@@ -593,7 +647,7 @@ class CGen(object):
 
         return ret
 
-    def code_genInteger(self, c, method, intExpr):
+    def code_genInteger(self, c, method, num_locals, intExpr):
         if intExpr.ival in self.inttable:
             int_label = self.inttable[str(intExpr.ival)]
         else:
@@ -608,10 +662,10 @@ class CGen(object):
 
         return ret
 
-    def code_genDispatch(self, c: 'Class', method, dispatchExpr):
+    def code_genDispatch(self, c: 'Class', method, num_locals, dispatchExpr):
         ret = ""
 
-        ret += self.code_genExpr(c, method, dispatchExpr.objExpr)
+        ret += self.code_genExpr(c, method, num_locals, dispatchExpr.objExpr)
         ret += TAB + "movq %rax, %rdi" + NEWLINE
 
         methodName = dispatchExpr.methodName
@@ -619,7 +673,7 @@ class CGen(object):
         
         stack_count = 0
         for i, arg in reversed(list(enumerate(dispatchExpr.arguments))):
-            ret += self.code_genExpr(c, method, arg)
+            ret += self.code_genExpr(c, method, num_locals, arg)
             if i < 5:   
                 # first reg is saved for object (could be SELF or other type)
                 ret += TAB + "movq %rax, {}".format(self.param_regs[i + 1]) + NEWLINE
@@ -643,11 +697,11 @@ class CGen(object):
 
         return ret
 
-    def code_genAssignment(self, c: 'Class', method, assignExpr):
+    def code_genAssignment(self, c: 'Class', method, num_locals, assignExpr):
         ret = ""
 
         lhs = assignExpr.id
-        ret += self.code_genExpr(c, method, assignExpr.expr)
+        ret += self.code_genExpr(c, method, num_locals, assignExpr.expr)
 
         # if it is in scope
         offset = self.scope.lookup(lhs)
@@ -706,7 +760,7 @@ if __name__ == "__main__":
 
     parser = make_parser()
 
-    file_name = "while"
+    file_name = "let"
 
 
     with open("Tests/" + file_name + ".cl") as file:

@@ -765,6 +765,37 @@ class Eq(BinaryOp):
             
         return None, GLOBAL.booleanType
 
+class NotEq(BinaryOp):
+    """
+    expr ::= expr != expr
+    """
+
+    def __init__(self, e1: 'Expr', e2: 'Expr'):
+        super(Eq, self).__init__(e1, e2)
+
+    def __str__(self):
+        return str(self.e1) + " = " + str(self.e2)
+
+    def typecheck(self, scope):
+        _, ty1 = self.e1.typecheck(scope)
+        _, ty2 = self.e2.typecheck(scope)
+
+        if ty1 == GLOBAL.selfType:
+            ty1 = scope.enclosingClass
+
+        if ty2 == GLOBAL.selfType:
+            ty2 = scope.enclosingClass
+
+        prim_ty_set = {GLOBAL.integerType, GLOBAL.stringType, GLOBAL.booleanType} 
+
+        if ty1 != ty2 and (ty1 in prim_ty_set or ty2 in prim_ty_set):
+            self.error("type mismatch at = operator") 
+
+        if not type(ty1) == type(ty2):
+            self.error("type mismatch eq4")
+            
+        return None, GLOBAL.booleanType
+
 
 class GreaterThan(BinaryOp):
     """

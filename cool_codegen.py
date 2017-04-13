@@ -24,6 +24,8 @@ class CGen(object):
         self.methodList = []
 
         self.param_regs = ['%rdi', '%rsi', '%rdx', '%rcx', '%r8', '%r9']
+        self.caller_save = ['%rdx', '%rcx', '%rsi', '%rdi', '%r8', '%r9', '%r10']
+        self.callee_save = ['%rbx', '%r12', '%r13', '%r14']
 
 
         self.predefinedClassName = ['Object', 'IO', 'Int', 'String', 'Bool']
@@ -332,7 +334,8 @@ class CGen(object):
 
         if c.inheritType:
             ret += TAB + "movq %rdi, %rdi" + NEWLINE
-            ret += TAB + "callq {}".format(c.inheritType + UNDERSCORE + INIT) + NEWLINE
+            # ret += TAB + "callq {}".format(c.inheritType + UNDERSCORE + INIT) + NEWLINE
+            ret += self.genFuncCall(c.inheritType + UNDERSCORE + INIT)
 
         for k, v in offset_info.items():
             ty = v['type']
@@ -372,9 +375,9 @@ class CGen(object):
         if stack_size > 0:
             ret += TAB + "subq ${}, %rsp".format(str(stack_size * self.wordsize)) + NEWLINE
         else:
-            ret += TAB + "subq $16, %rsp" + NEWLINE
+            ret += TAB + "subq $8, %rsp" + NEWLINE
 
-        ret += TAB + "movq %rdi, -8(%rbp)" + NEWLINE
+        ret += TAB + "movq %rdi, -40(%rbp)" + NEWLINE
 
         if num_params > 0:
             for i in range(1, num_params):
@@ -392,7 +395,7 @@ class CGen(object):
         if stack_size > 0:
             ret += TAB + "addq ${}, %rsp".format(str(stack_size * self.wordsize)) + NEWLINE
         else:
-            ret += TAB + "addq $16, %rsp" + NEWLINE
+            ret += TAB + "addq $8, %rsp" + NEWLINE
 
         ret += self.genMethodExit()
 
@@ -411,22 +414,129 @@ class CGen(object):
             return self.code_genIf(c, method, params_offset, expr)
         elif isinstance(expr, Boolean):
             return self.code_genBoolean(c, method, params_offset, expr)
+        elif isinstance(expr, While):
+            return self.code_genWhile(c, method, params_offset, expr)
+        elif isinstance(expr, BinaryOp):
+            return self.code_genBinary(c, method, params_offset, expr)
+        elif isinstance(expr, Not):
+            return self.code_genNot(c, method, params_offset, expr)
+        elif isinstance(expr, Self):
+            return self.code_genSelf(c, method, params_offset, expr)
 
+    def code_genSelf(self, c, method, params_offset, selfExpr):
+        return TAB + "movq -40(%rbp), %rax" + NEWLINE
     
+    def code_genId(self, c, method, params_offset, idExpr):
+       pass 
+
+        
+        
+    def code_genNot(self, c, method, params_offset, expr):
+        if isinstance(expr, GreaterThan):
+            return code_genExpr(self, c, method, params_offset, LessEq(expr.e1, expr.e2))
+        elif isinstance(expr, GreaterEq):
+            return code_genExpr(self, c, method, params_offset, LessThan(expr.e1, expr.e2))
+        elif isinstance(expr, Eq):
+            return code_genExpr(self, c, method, params_offset, NotEq(expr.e1, expr.e2))
+        elif isinstance(expr, NotEq):
+            return code_genExpr(self, c, method, params_offset, Eq(expr.e1, expr.e2))
+        elif isinstance(expr, LessThan):
+            return code_genExpr(self, c, method, params_offset, GreaterEq(expr.e1, expr.e2))
+        elif isinstance(expr, LessEq):
+            return code_genExpr(self, c, method, params_offset, GreaterThan(expr.e1, expr.e2))
+        else:
+            exit("this should not happend - code genNode")
+        
+
+        
 
 
+    def code_genBinayArith(self, c, method, params_offset, expr):
+        if isinstance(expr, Plus):
+            op = "addq"
+        elif isinstance(expr, Minus):
+            op = "subq"
+        elif isinstance(expr, Multiply):
+            op = "imul"
 
+        elif isinstance(expr, Divide):
+            print("ignore division for now")
+            pass
+
+        e1 = self.code_genExpr(c, method, params_offset, expr.e1)
+        e2 = self.code_genExpr(c, method, params_offset, expr.e2)
+
+        ret = e1 + NEWLINE
+        ret += TAB + "push %rax" + NEWLINE
+        ret += e2 + NEWLINE
+        ret += TAB + "popq %rdi" + NEWLINE
+        ret += TAB + "{} %rdi, %rax".format(op) + NEWLINE
+
+        return ret
+
+    def code_genBinary(self, c, method, params_offset, expr):
+
+        if isinstance(expr, (Plus, Minus, Multiply, Divide)):
+            return self.code_genBinayArith(c, method, params_offset, expr)
+        
+        # condition
+        if isinstance(expr, GreaterThan):
+            e = "g"
+        elif isinstance(expr, GreaterEq):
+            e = "ge"
+        elif isinstance(expr, Eq):
+            e = "e"
+        elif isinstance(expr, LessThan):
+            e = "l"
+        elif isinstance(expr, LessEq):
+            e = "le"
+        elif isinstance(expr, NotEq):
+            e = "ne"
+
+        e1 = self.code_genExpr(c, method, params_offset, expr.e1)
+        e2 = self.code_genExpr(c, method, params_offset, expr.e2)
+
+        ret = e1
+        ret += TAB + "pushq %rax" + NEWLINE
+        ret += e2
+        ret += TAB + "popq %rdi" + NEWLINE
+        ret += TAB + "comp %rax, %rdi" + NEWLINE
+        ret += TAB + "set{} %al" + NEWLINE
+        ret += TAB + "movzbq %al, %rax" + NEWLINE
+
+        return ret
+
+    def code_genWhile(self, c, method, params_offset, whileExpr):
+
+        seqNum = self.genSeqNum()
+
+        begin_label = c.className + "." + method.methodName + ".loop_start." + str(seqNum)
+        end_label = c.className + "." + method.methodName + ".loop_end." + str(seqNum)
+
+        cnd = self.code_genExpr(c, method, params_offset, whileExpr.condition)
+        body = self.code_genExpr(c, method, params_offset, whileExpr.bodyExpr)
+
+        ret = begin_label + COLON + NEWLINE
+        ret += cnd + NEWLINE
+        ret += TAB + "cmpq $1, %rax" + NEWLINE
+        ret += TAB + "jne {}".format(end_label) + NEWLINE
+        ret += body + NEWLINE
+        ret += TAB + "jmp {}".format(begin_label) + NEWLINE
+
+        ret += end_label + COLON + NEWLINE
+
+        return ret
+        
+    
     def code_genIf(self, c, method, params_offset, ifExpr):
 
         seqNum = self.genCondSeq()
-        thn_label = c.className + "."  + method.methodName + ".then." + str(seqNum)
         els_label = c.className + "."  + method.methodName + ".else." + str(seqNum)
         end_label = c.className + "."  + method.methodName + ".end." + str(seqNum)
 
         cnd = self.code_genExpr(c, method, params_offset, ifExpr.cnd)
         thn = self.code_genExpr(c, method, params_offset, ifExpr.thn)
         els = self.code_genExpr(c, method, params_offset, ifExpr.els)
-
 
         ret = TAB + "cmpq $1, %rax" + NEWLINE
         ret += TAB + "jne {}".format(els_label) + NEWLINE
@@ -436,7 +546,6 @@ class CGen(object):
         ret += els_label + COLON + NEWLINE
         ret += els + NEWLINE
         ret += end_label + COLON + NEWLINE
-
 
         return cnd + ret
 
@@ -479,12 +588,8 @@ class CGen(object):
     def code_genDispatch(self, c: 'Class', method, params_offset, dispatchExpr):
         ret = ""
 
-        if isinstance(dispatchExpr.objExpr, Self):
-            # push self object into %rdi
-            ret += self.gen_selfObjAddress()   
-        else:
-            ret += self.code_genExpr(c, method, params_offset, dispatchExpr.objExpr)
-            ret += TAB + "movq %rax, %rdi" + NEWLINE
+        ret += self.code_genExpr(c, method, params_offset, dispatchExpr.objExpr)
+        ret += TAB + "movq %rax, %rdi" + NEWLINE
 
         methodName = dispatchExpr.methodName
         arg_len = len(dispatchExpr.arguments)
@@ -508,7 +613,7 @@ class CGen(object):
         # use offset to get the appropriate function
         ret += TAB + "movq {}({}), {}".format(str(offset), DISP_FUNC_REG, DISP_FUNC_REG) + NEWLINE
 
-        ret += TAB + "callq* {}".format(DISP_FUNC_REG) + NEWLINE
+        ret += self.genFuncCall('*' + DISP_FUNC_REG)
 
         while stack_count > 0:
             ret += TAB + "popq %rax" + NEWLINE
@@ -519,7 +624,7 @@ class CGen(object):
         ret = ""
 
         lhs = assignExpr.id
-        ret += code_genExpr(self, c.className, params_offset, assignExpr.expr)
+        ret += self.code_genExpr(c, method, params_offset, assignExpr.expr)
 
         # formal params
         if lhs in params_offset:
@@ -529,19 +634,41 @@ class CGen(object):
         if lhs in self.attrtable[c.className]:
             attr_offset = self.attrtable[c.className][lhs]
 
-            ret += TAB + "movq -8(%rbp), {}".format(OBJ_ADDR_REG) + NEWLINE
+            ret += TAB + "movq -40(%rbp), {}".format(OBJ_ADDR_REG) + NEWLINE
             ret += TAB + "movq %rax, {}({})",format(str(attr_offset), OBJ_ADDR_REG) + NEWLINE
 
         return ret
 
     def gen_selfObjAddress(self):
-        return TAB + "movq -8(%rbp), {}".format(OBJ_ADDR_REG) + NEWLINE
+        return TAB + "movq -40(%rbp), {}".format(OBJ_ADDR_REG) + NEWLINE
 
     def genMethodEntry(self):
-        return TAB + "pushq %rbp" + NEWLINE + TAB + "movq %rsp, %rbp" + NEWLINE
+        ret = TAB + "pushq %rbp" + NEWLINE + TAB + "movq %rsp, %rbp" + NEWLINE
+        for reg in self.callee_save:
+            ret += TAB + "pushq {}".format(reg) + NEWLINE
+        return ret
 
     def genMethodExit(self):
-        return TAB + "leave" + NEWLINE + TAB + "ret" + NEWLINE
+        ret = ""
+        for reg in list(reversed(self.callee_save)):
+            ret += TAB + "popq {}".format(reg) + NEWLINE
+
+        return ret + TAB + "leave" + NEWLINE + TAB + "ret" + NEWLINE
+
+    def genFuncCall(self, name):
+        ret = ""
+
+        for reg in self.caller_save:
+            ret += TAB + "pushq {}".format(reg) + NEWLINE
+
+        ret += TAB + "callq {}".format(name) + NEWLINE
+
+        for reg in list(reversed(self.caller_save)):
+            ret += TAB + "popq {}".format(reg) + NEWLINE
+
+        return ret
+
+        
 
 if __name__ == "__main__":
     
@@ -555,7 +682,7 @@ if __name__ == "__main__":
 
     parser = make_parser()
 
-    file_name = "if"
+    file_name = "while"
 
 
     with open("Tests/" + file_name + ".cl") as file:

@@ -3,7 +3,7 @@ class Main inherits IO {
    whileloop(x: Int) : Object{
        while x > 0 loop
        {
-        out_string("haha");
+        out_int(x);
         x <- x - 1;
        }
        pool

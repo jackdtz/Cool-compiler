@@ -37,6 +37,7 @@ class CGen(object):
         self.tagtable = {}
 
         self.initialize()
+        self.scope = CGen_scope()
 
     def initialize(self):
         seq = self.genSeqNum()

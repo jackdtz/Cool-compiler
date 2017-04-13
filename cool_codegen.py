@@ -403,6 +403,9 @@ class CGen(object):
 
         ret += self.genMethodEntry()
 
+        if method.methodName == "init":
+            ret += self.genFuncCall("{}_init".format(c.inheritType))
+
         num_params = len(method.formalParams) + 1
 
         # this will be used to calculate the offset of local from base pointer

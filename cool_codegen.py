@@ -132,33 +132,10 @@ class CGen(object):
             methodDecls = [f for f in c.features if isinstance(f, FeatureMethodDecl)]
             self.dispatchTable[c.className] = [(c.className, m.methodName) for m in methodDecls] 
 
-            # initialize attribute in the prototype object
+            # initialize attribute all to 0 in the prototype object
             for i, attr in enumerate(attributes):
-                if attr.decType == 'Int':
-                    if not attr.init:
-                        prototype.append(0)
-                    else:
-                        prototype.append(attr.init.ival)
-                elif attr.decType == 'Bool':
-                    if not attr.init:
-                        prototype.append(0)
-                    else:
-                        prototype.append(1 if attr.init.bval else 0)
-                elif attr.decType == 'String':
-                    if not attr.init:
-                        empty_string_label = self.stringtable['']
-                        prototype.append(empty_string_label) # string
-                    else:
-                        seq = self.genSeqNum()
-                        int_label = "int_const" + str(seq)
-                        string_label = "string_const" + str(seq)
-                        self.inttable[str(len(attr.init.sval))] = int_label
-                        self.stringtable[attr.init.sval] = string_label
-                        prototype.append(string_label)
-                else:
-                    # object pointer set to -1
-                    prototype.append(-1)
-                
+                prototype.append(0)
+
                 self.attrtable[c.className][attr.id] = {}
                 self.attrtable[c.className][attr.id]['offset'] = (i + 3) * self.wordsize
                 self.attrtable[c.className][attr.id]['type'] = attr.decType
@@ -346,50 +323,95 @@ class CGen(object):
 
         ret = ""
         hasSeenInit = False
+        hasAttrbutes = True if self.attrtable[c.className] else False
 
         for feature in c.features:
             if not isinstance(feature, FeatureMethodDecl):
                 continue
             
-            ret += NEWLINE + self.code_genMethod(c, feature)
-
             if feature.methodName == "init":
                 hasSeenInit = True
+                if hasAttrbutes:
+                    feature = self.addAttrInitToFeature(c, feature)
 
-        if not hasSeenInit:
-            ret += self.code_genDefaultInit(c)
+            ret += NEWLINE + self.code_genMethod(c, feature)
 
+        if not hasSeenInit and not hasAttrbutes:
+            ret += self.gen_emptyInit(c)
+        elif not hasSeenInit:
+            defaultMethod = self.generateDefaulInit(c)
+            ret += self.code_genMethod(c, defaultMethod)
+        elif not hasAttrbutes:
+            pass
+    
+
+            
         return ret
 
-    def code_genDefaultInit(self, c: 'Class'):
-        ret = self.genMethodEntry()
+    def addAttrInitToFeature(self, c, method):
+        attrs = self.getAttributesFromClass(c)
 
-        offset_info = self.attrtable[c.className]
+        new_body = Block([])
 
-        if c.inheritType:
-            ret += TAB + "movq %rdi, %rdi" + NEWLINE
-            # ret += TAB + "callq {}".format(c.inheritType + UNDERSCORE + INIT) + NEWLINE
-            ret += self.genFuncCall(c.inheritType + UNDERSCORE + INIT)
-
-        for k, v in offset_info.items():
-            ty = v['type']
-            offset = v['offset']
+        for id, initInfo in attrs.items():
+            ty = initInfo[0]
+            init = initInfo[1]
 
             if ty == 'String':
-                empty_string_label = self.stringtable['']
-                ret += TAB + "leaq {}(%rip), %rax".format(empty_string_label) + NEWLINE
-                ret += TAB + "movq %rax, {}(%rbp)".format(offset) + NEWLINE
-            elif ty == 'Bool' or ty == 'Int':
-                ret += TAB + "movq $0, {}(%rbp)".format(offset) + NEWLINE
+                rvalue = init if init else String("")
+            elif ty == "Int":
+                rvalue = init if init else Integer(0)
+            elif ty == "Bool":
+                rvalue = init if init else Boolean(False)
             else:
-                ret += TAB + "movq $0, {}(%rbp)".format(offset) + NEWLINE
+                rvalue = init if init else Integer(-1)
+
+            body.exprs.append(AssignmentExpr(id, rvalue))
+
+        new_body.exprs.append(method.bodyExpr)
+        method.bodyExpr = new_body
+
+        return method
+
+    
+    def generateDefaulInit(self, c: 'class'):
+        attrs = self.getAttributesFromClass(c)
+
+        body = Block([])
+
+        for id, initInfo in attrs.items():
+            ty = initInfo[0]
+            init = initInfo[1]
+
+            if ty == 'String':
+                rvalue = init if init else String("")
+            elif ty == "Int":
+                rvalue = init if init else Integer(0)
+            elif ty == "Bool":
+                rvalue = init if init else Boolean(False)
+            else:
+                rvalue = init if init else Integer(-1)
+
+            body.exprs.append(AssignmentExpr(id, rvalue))
+
+        return FeatureMethodDecl('init', [], 'Object', body)
+
+
+    def gen_emptyInit(self, c: 'Class'):
+        ret = self.genMethodEntry()
+
+        if c.inheritType:
+            ret += self.genFuncCall(c.inheritType + UNDERSCORE + INIT)
 
         ret += self.genMethodExit()
 
         return c.className + UNDERSCORE + INIT + COLON + NEWLINE + ret + NEWLINE
 
+    def getAttributesFromClass(self, c):
+        return dict([(f.id, (f.decType, f.init)) for f in c.features if isinstance(f, FeatureAttribute)])
+
     def code_genMethod(self, c: 'Class', method):
-        if c.className in self.predefinedClassName:
+        if c.className in self.predefinedClassName and method.methodName != 'init':
             return ""
 
         # params_offset = {}
@@ -405,6 +427,27 @@ class CGen(object):
 
         if method.methodName == "init":
             ret += self.genFuncCall("{}_init".format(c.inheritType))
+            attrs = self.getAttributesFromClass(c)
+
+            # new_body = Block([])
+
+            # for id, initInfo in attrs.items():
+            #     ty = initInfo[0]
+            #     init = initInfo[1]
+
+            #     if ty == 'String':
+            #         rvalue = init if init else String("")
+            #     elif ty == "Int":
+            #         rvalue = init if init else Integer(0)
+            #     elif ty == "Bool":
+            #         rvalue = init if init else Boolean(False)
+            #     else:
+            #         rvalue = init if init else Integer(-1)
+
+            #     new_body.exprs.append(AssignmentExpr(id, rvalue))
+
+            # new_body.exprs.append(method.bodyExpr)
+            # method.bodyExpr = new_body
 
         num_params = len(method.formalParams) + 1
 
@@ -448,6 +491,20 @@ class CGen(object):
 
         return label + COLON + NEWLINE + ret + NEWLINE
 
+
+    # def initAttributes(self, c: 'Class', method):
+    #     attrs = [f for f in c.features if isinstance(f, FeatureAttribute)]
+
+    #     ret += ""
+
+    #     for attr in attrs:
+            
+
+
+
+
+
+
     def code_genExpr(self, c, method, num_locals, expr):
         if isinstance(expr, AssignmentExpr):
             return self.code_genAssignment(c, method, num_locals, expr)
@@ -479,6 +536,14 @@ class CGen(object):
             return self.code_genExpr(c, method, num_locals, expr.e)
         elif isinstance(expr, NewConstruct):
             return self.code_genNew(c, method, num_locals, expr)
+        elif isinstance(expr, Neg):
+            return self.code_genNeg(c, method, num_locals, expr)
+
+    def code_genNeg(self, c, method, num_locals, expr):
+        expr_code, expr_type = self.code_genExpr(c, method, num_locals, expr.expr)
+
+        return expr_code + TAB + "negq %rax" + NEWLINE, expr_type
+
 
     def code_genNew(self, c, method, num_locals, newExpr):
         object_name = newExpr.objType
@@ -510,7 +575,7 @@ class CGen(object):
             if varDecl.init:
                 init, _ = self.code_genExpr(c, method, num_locals + decl_num, varDecl.init)
             else:
-                init, _ = self.code_genInitValue(varDecl.decType)
+                init = self.code_genInitValue(varDecl.decType)
                 
             ret += init
             ret += TAB + "movq %rax, {}(%rbp)".format(offset) + NEWLINE
@@ -528,7 +593,7 @@ class CGen(object):
         for i in range(len(block.exprs) - 1):
             ret, _ = self.code_genExpr(c, method, num_locals, block.exprs[i])
             codes.append(ret)
-
+        
         last_code, ty = self.code_genExpr(c, method, num_locals, block.exprs[-1])
         codes.append(last_code)
 
@@ -553,11 +618,11 @@ class CGen(object):
             object_attr_type = self.attrtable[c.className][idExpr.id]['type']
 
             ret = TAB + "movq {}(%rbp), %rax".format(object_addr_offset) + NEWLINE
-            if object_attr_type in ['Int', 'String', 'Bool']:
-                ret += TAB + "movq (%rax), %rax".format(object_attr_offset) + NEWLINE
-                ret += TAB + "addq ${}, %rax".format(object_attr_offset) + NEWLINE
-            else:
-                ret += TAB + "movq {}(%rax), %rax".format(object_attr_offset) + NEWLINE
+            # if object_attr_type in ['Int', 'String', 'Bool']:
+            #     ret += TAB + "movq (%rax), %rax".format(object_attr_offset) + NEWLINE
+            #     ret += TAB + "addq ${}, %rax".format(object_attr_offset) + NEWLINE
+            # else:
+            ret += TAB + "movq {}(%rax), %rax".format(object_attr_offset) + NEWLINE
 
 
             return ret, object_attr_type
@@ -588,11 +653,9 @@ class CGen(object):
         elif isinstance(expr, Minus):
             op = "subq"
         elif isinstance(expr, Multiply):
-            op = "imul"
-
+            op = "imulq"
         elif isinstance(expr, Divide):
-            print("ignore division for now")
-            pass
+            op = "idivq"
 
         e1, _ = self.code_genExpr(c, method, num_locals, expr.e1)
         e2, _ = self.code_genExpr(c, method, num_locals, expr.e2)
@@ -600,9 +663,16 @@ class CGen(object):
         ret = e1 + NEWLINE
         ret += TAB + "push %rax" + NEWLINE
         ret += e2 + NEWLINE
-        ret += TAB + "popq %rdi" + NEWLINE
-        ret += TAB + "{} %rax, %rdi".format(op) + NEWLINE
-        ret += TAB + "movq %rdi, %rax" + NEWLINE
+        ret += TAB + "movq %rax, %rdi" + NEWLINE        #e2 : rdi
+        ret += TAB + "popq %rax" + NEWLINE              #e1 : rax
+        if op == "idivq":
+            ret += TAB + "xorq %rdx, %rdx" + NEWLINE
+            ret += TAB + "idivq %rdi" + NEWLINE
+        else:
+            ret += TAB + "{} %rdi, %rax".format(op) + NEWLINE
+
+        # ret += TAB + "{} %rax, %rdi".format(op) + NEWLINE
+        # ret += TAB + "movq %rdi, %rax" + NEWLINE
 
         return ret, 'Int'
 
@@ -683,39 +753,44 @@ class CGen(object):
 
     def code_genBoolean(self, c, method, num_locals, booleanExpr):
         if booleanExpr.bval:
-            return TAB + "movq $1, %rax" + NEWLINE
+            return TAB + "movq $1, %rax" + NEWLINE, 'Bool'
         
         return TAB + "movq $0, %rax" + NEWLINE, 'Bool'
 
-    def code_genString(self, c, method, num_locals, stringExpr):
+    def code_genString(self, c, method, num_locals, stringExpr, addrMode=False):
 
         if stringExpr.sval in self.stringtable:
             string_lab = self.stringtable[stringExpr.sval]
         else:
             seq = self.genSeqNum()
             string_lab = "string_const" + str(seq)
-            int_lab = "int_const" + str(seq)
             self.stringtable[stringExpr.sval] = string_lab
-            self.inttable[str(len(stringExpr.sval))] = int_lab 
 
+            if not str(len(stringExpr.sval)) in self.inttable:
+                int_lab = "int_const" + str(seq)
+                self.inttable[str(len(stringExpr.sval))] = int_lab 
         # the actual string is located at offset 32, the fifth field
         ret = TAB + "leaq {}(%rip), %rax".format(string_lab) + NEWLINE
         ret += TAB + "addq ${}, %rax".format(STRCONST_STROFFSET) + NEWLINE
 
         return ret, 'String'
 
-    def code_genInteger(self, c, method, num_locals, intExpr):
-        if intExpr.ival in self.inttable:
+    def code_genInteger(self, c, method, num_locals, intExpr, addrMode=False):
+        if str(intExpr.ival) in self.inttable:
             int_label = self.inttable[str(intExpr.ival)]
         else:
             seq = self.genSeqNum()
             int_label = "int_const" + str(seq)
             self.inttable[str(intExpr.ival)] = int_label
+
+        if addrMode:
+            return int_label
         
         # get constant object address, then get content at offset
         ret = TAB + "leaq {}(%rip), %rax".format(int_label) + NEWLINE
-        ret += TAB + "addq ${}, %rax".format(INTCONST_VALOFFSET) + NEWLINE
-        ret += TAB + "movq (%rax), %rax" + NEWLINE
+        ret += TAB + "movq {}(%rax), %rax".format(INTCONST_VALOFFSET) + NEWLINE
+        # ret += TAB + "addq ${}, %rax".format(INTCONST_VALOFFSET) + NEWLINE
+        # ret += TAB + "movq (%rax), %rax" + NEWLINE
 
         return ret, 'Int'
 
@@ -776,6 +851,7 @@ class CGen(object):
         if lhs in self.attrtable[c.className]:
             attr_offset = self.attrtable[c.className][lhs]['offset']
 
+            # -40 is the offset to access self obj
             ret += TAB + "movq -40(%rbp), {}".format(OBJ_ADDR_REG) + NEWLINE
             ret += TAB + "movq %rax, {}({})".format(attr_offset, OBJ_ADDR_REG) + NEWLINE
 

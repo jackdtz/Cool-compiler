@@ -2,23 +2,41 @@
 
 from parser import *
 import cool_global as GLOBAL
+from cool_codegen import *
 
 if __name__ == "__main__":
-    import sys, os, glob
+    import sys
+    import os
+    import glob
+    from parser import make_parser
+    from os.path import basename
+    import subprocess
 
-    root_path = '/Users/Jack/Documents/programming/python/coolCompiler'
-    test_folder = root_path + '/Tests'       
 
-    parser = make_parser() 
+    parser = make_parser()
 
-    for filename in os.listdir(test_folder):
-        if filename.endswith('.cl'):
-            file_path = test_folder + "/" + filename
-            print("-------------------Testing parser with file {}-------------------".format(filename))
-            with open(file_path, encoding='utf-8') as file:
-                GLOBAL.typecheckError = False
-                cool_program_code = file.read()
-                parse_result = parser.parse(cool_program_code)
-                if parse_result.typecheck():
-                    if not GLOBAL.typecheckError:
-                        print("successful")
+    filename = sys.argv[1]
+
+    with open(filename) as f:
+        cool_program_code = f.read()
+
+    parse_result = parser.parse(cool_program_code)
+    type_scope = parse_result.typecheck()
+    cgen = CGen(parse_result, type_scope)
+    code = cgen.code_gen()
+
+    assembly_name = os.path.splitext(basename(filename))[0] 
+    with open(assembly_name + ".s", 'w') as f:
+        f.write(code)
+
+
+    # print(subprocess.check_output(
+    #     [
+    #         "clang", 
+    #         "runtime/runtime.c", 
+    #         "runtime/startup.s", 
+    #         "x86/{}.s".format(assembly_name),
+    #         "-o",
+    #         "bin/{}".format(assembly_name)
+
+    #     ]))

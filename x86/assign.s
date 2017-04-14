@@ -54,24 +54,19 @@ Main_protoObj:
     .quad    Main_dispatch_table
     .quad    0
 
-Main_dispatch_table:
+IO_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
     .quad    IO_out_string
     .quad    IO_out_int
     .quad    _IO_in_string
     .quad    _IO_in_int
-    .quad    Main_main
-
-Object_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
 
 Int_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
 
-Bool_dispatch_table:
+Object_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
 
@@ -82,42 +77,41 @@ String_dispatch_table:
     .quad    String_concat
     .quad    String_substr
 
-IO_dispatch_table:
+Main_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
     .quad    IO_out_string
     .quad    IO_out_int
     .quad    _IO_in_string
     .quad    _IO_in_int
+    .quad    Main_main
+
+Bool_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
 int_const4:
     .quad    3
     .quad    4
     .quad    Int_dispatch_table
-    .quad    2
+    .quad    1
 
-int_const5:
+int_const1:
     .quad    3
     .quad    4
     .quad    Int_dispatch_table
-    .quad    3
+    .quad    9
 
-int_const2:
+int_const3:
     .quad    3
     .quad    4
     .quad    Int_dispatch_table
-    .quad    9000
+    .quad    10
 
 int_const0:
     .quad    3
     .quad    4
     .quad    Int_dispatch_table
     .quad    0
-
-int_const3:
-    .quad    3
-    .quad    4
-    .quad    Int_dispatch_table
-    .quad    1
 
 string_const0:
     .quad    2
@@ -218,8 +212,7 @@ String_init:
     movq %rax, 32(%rdi)
 
     leaq int_const0(%rip), %rax
-    addq $24, %rax
-    movq (%rax), %rax
+    movq 24(%rax), %rax
     movq -40(%rbp), %rdi
     movq %rax, 24(%rdi)
     addq $16, %rsp
@@ -258,8 +251,7 @@ Int_init:
     subq $16, %rsp
     movq %rdi, -40(%rbp)
     leaq int_const0(%rip), %rax
-    addq $24, %rax
-    movq (%rax), %rax
+    movq 24(%rax), %rax
     movq -40(%rbp), %rdi
     movq %rax, 24(%rdi)
     addq $16, %rsp
@@ -319,26 +311,28 @@ Main_main:
     pushq %r14
     subq $16, %rsp
     movq %rdi, -40(%rbp)
-Main.main.loop_start.1:
+    leaq int_const1(%rip), %rax
+    movq 24(%rax), %rax
+    movq -40(%rbp), %rdi
+    movq %rax, 24(%rdi)
+
+Main.main.loop_start.2:
     movq -40(%rbp), %rax
-    movq (%rax), %rax
-    addq $24, %rax
+    movq 24(%rax), %rax
     pushq %rax
-    leaq int_const2(%rip), %rax
-    addq $24, %rax
-    movq (%rax), %rax
+    leaq int_const3(%rip), %rax
+    movq 24(%rax), %rax
     popq %rdi
     cmpq %rax, %rdi
-    setg %al
+    setl %al
     movzbq %al, %rax
 
     cmpq $1, %rax
-    jne Main.main.loop_end.1
+    jne Main.main.loop_end.2
     movq -40(%rbp), %rax
     movq %rax, %rdi
     movq -40(%rbp), %rax
-    movq (%rax), %rax
-    addq $24, %rax
+    movq 24(%rax), %rax
     movq %rax, %rsi
     movq 16(%rdi), %r10
     movq 24(%r10), %r10
@@ -361,13 +355,11 @@ Main.main.loop_start.1:
     popq %rdx
 
     movq -40(%rbp), %rax
-    movq (%rax), %rax
-    addq $24, %rax
+    movq 24(%rax), %rax
 
     push %rax
-    leaq int_const3(%rip), %rax
-    addq $24, %rax
-    movq (%rax), %rax
+    leaq int_const4(%rip), %rax
+    movq 24(%rax), %rax
 
     movq %rax, %rdi
     popq %rax
@@ -375,8 +367,8 @@ Main.main.loop_start.1:
     movq -40(%rbp), %rdi
     movq %rax, 24(%rdi)
 
-    jmp Main.main.loop_start.1
-Main.main.loop_end.1:
+    jmp Main.main.loop_start.2
+Main.main.loop_end.2:
     addq $16, %rsp
     popq %r14
     popq %r13
@@ -411,18 +403,8 @@ Main_init:
     popq %rdx
     subq $16, %rsp
     movq %rdi, -40(%rbp)
-    leaq int_const4(%rip), %rax
-    addq $24, %rax
-    movq (%rax), %rax
-
-    push %rax
-    leaq int_const5(%rip), %rax
-    addq $24, %rax
-    movq (%rax), %rax
-
-    movq %rax, %rdi
-    popq %rax
-    addq %rdi, %rax
+    leaq int_const0(%rip), %rax
+    movq 24(%rax), %rax
     movq -40(%rbp), %rdi
     movq %rax, 24(%rdi)
     addq $16, %rsp

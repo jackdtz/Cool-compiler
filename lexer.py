@@ -19,6 +19,7 @@ class Scanner(object):
     t_LESSTHAN = r'\<'
     t_LESSEQ = r'\<\='
     t_EQUAL = r'\='
+    t_NOTEQ = r'\!='
     t_ASSIGN = r'\<\-'
     t_GREATERTHAN = r'\>'
     t_GREATEREQ = r'\>\='
@@ -73,7 +74,7 @@ class Scanner(object):
            "LPAREN", "RPAREN", "LBRACE", "RBRACE", "COLON", "SEMICOLON", "COMMA", "ALT", "DOT",
 
            # operator
-           "LESSTHAN", "LESSEQ", "EQUAL", "GREATERTHAN", "GREATEREQ", "PLUS", "MINUS", "MULTIPLY", "DIVIDE", "ASSIGN",
+           "LESSTHAN", "LESSEQ", "EQUAL", "NOTEQ", "GREATERTHAN", "GREATEREQ", "PLUS", "MINUS", "MULTIPLY", "DIVIDE", "ASSIGN",
 
            "ARROW", "UNARY_COMP"
         )

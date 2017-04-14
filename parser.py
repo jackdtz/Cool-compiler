@@ -294,16 +294,19 @@ class Parser(object):
         expression : expression LESSTHAN expression
                    | expression LESSEQ expression
                    | expression EQUAL expression
+                   | expression NOTEQ expression
                    | expression GREATERTHAN expression
                    | expression GREATEREQ expression
                    | NOT expression
         """
         if p[2] == "<":
-            p[0] = GreaterThan(p[1], p[3])
+            p[0] = LessThan(p[1], p[3])
         elif p[2] == '<=':
-            p[0] = GreaterEq(p[1], p[3])
+            p[0] = LessEq(p[1], p[3])
         elif p[2] == '=':
             p[0] = Eq(p[1], p[3])
+        elif p[2] == '!=':
+            p[0] = NotEq(p[1], p[3])
         elif p[2] == '>':
             p[0] = GreaterThan(p[1], p[3])
         elif p[1] == ">=":

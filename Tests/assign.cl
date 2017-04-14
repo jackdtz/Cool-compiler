@@ -1,8 +1,9 @@
 class Main inherits IO{
-	x : Int <- 2 + 3;
+	x : Int;
 	main () : Object {
 		{
-			while x<9000 loop 
+			x <- 9;
+			while x<10 loop 
 			{
 				out_int(x) ;
 				x <- x + 1;

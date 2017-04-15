@@ -3,6 +3,10 @@
 
 The current project contains a runtime library (please see the runtime folder), which define several functions for IO and string manipulation, and a compiler which compile COOL program to x64(intel) assembly.
 
+## Syntax
+
+![Synatx](Doc/cool-syntax.png)
+
 ## I have only tested my compiler on MAC OX X with python 3.
 
 To use this compiler please make sure you do the following steps:
@@ -15,7 +19,7 @@ to generate binary file
 3. run `./<filename>` to see the result.
 
 
-#### The current compiler did not implement the following features due to time constaint.
+#### The current compiler did not implement the following features due to time constraint.
 
 1. case expression
 2. null pointer dereference detection and handling.

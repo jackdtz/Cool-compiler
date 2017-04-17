@@ -72,9 +72,9 @@ class Program(Node):
            class type, class value(open a scope for method declarations)
         2. Walk through all class declartion again and record all inherited information
            (if there is one, or use object type as its inherited class type)
-        3. For each class declaration, get its method declaration scope and start walking 
-           through its all feature declarations. For each method declaration, a new scope
-           will be created for its value information (please see scope.py for more info)
+        3. For each class declaration, we ned to get its method declaration scope and start walking 
+           through its feature declarations. For each method declaration, a new scope
+           will be created as its value information (please see scope.py for more info)
         """
         for c in self.classes:
             classType = ClassType(c.className)

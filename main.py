@@ -15,7 +15,8 @@ if __name__ == "__main__":
 
     parser = make_parser()
 
-    filename = sys.argv[1]
+    # filename = sys.argv[1]
+    filename = "Tests/dynamic_dispatch.cl"
 
     with open(filename) as f:
         cool_program_code = f.read()

@@ -11,13 +11,14 @@ class Node(object):
     and several helper function for all subclasses
     """
     topScope = Scope(enclosingClass=GLOBAL.topLevelClass, parent=None)
+    typecheckError = False
 
     def __init__(self):
         pass
 
     def error(self, msg):
         print(msg)
-        GLOBAL.typecheckError = True
+        exit()
 
     def getType(self, scope: 'Scope', type_str: str) -> Type:
         """
@@ -960,7 +961,7 @@ if __name__ == "__main__":
 
     parser = make_parser()
 
-    with open("Tests/dynamic_dispatch.cl") as file:
+    with open("Tests/strlen.cl") as file:
             cool_program_code = file.read()
 
     parse_result = parser.parse(cool_program_code)

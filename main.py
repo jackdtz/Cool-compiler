@@ -15,17 +15,14 @@ if __name__ == "__main__":
 
     parser = make_parser()
 
-    # filename = sys.argv[1]
-    filename = "Tests/fib.cl"
+    filename = sys.argv[1]
+    # filename = "Tests/bad1.cl"
 
     with open(filename) as f:
         cool_program_code = f.read()
 
     parse_result = parser.parse(cool_program_code)
     type_scope = parse_result.typecheck()
-
-    if typecheckError:
-        exit("type check error")
 
     cgen = CGen(parse_result, type_scope)
     code = cgen.code_gen()

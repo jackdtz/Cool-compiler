@@ -14,10 +14,6 @@ topLevelClass = TopLevelClass("topLevel")
 
 void = Void()
 
-typecheckError = False
-
-
-
 
 # Code Generation
 

@@ -602,7 +602,7 @@ class CGen(object):
 
 
     def code_genSelf(self, c, method, num_locals, selfExpr):
-        return TAB + "movq -40(%rbp), %rax" + NEWLINE, 'Self'
+        return TAB + "movq {}(%rbp), %rax".format(STACK_SELF_OFFST) + NEWLINE, 'Self'
     
     def code_genId(self, c, method, num_locals, idExpr):
 
@@ -816,6 +816,7 @@ class CGen(object):
                 stack_count += 1
 
         # we will use r10 to store to vtable address
+        ret += TAB + "movq {}(%rbp), %rdi".format(STACK_SELF_OFFST) + NEWLINE
         ret += TAB + "movq {}(%rdi), {}".format(DISP_OFFSET, DISP_FUNC_REG) + NEWLINE
 
         # get the function offset from dispatch table
@@ -852,13 +853,13 @@ class CGen(object):
             attr_offset = self.attrtable[c.className][lhs]['offset']
 
             # -40 is the offset to access self obj
-            ret += TAB + "movq -40(%rbp), {}".format(OBJ_ADDR_REG) + NEWLINE
+            ret += TAB + "movq {}(%rbp), {}".format(STACK_SELF_OFFST, OBJ_ADDR_REG) + NEWLINE
             ret += TAB + "movq %rax, {}({})".format(attr_offset, OBJ_ADDR_REG) + NEWLINE
 
         return ret, rhs_ty
 
     def gen_selfObjAddress(self):
-        return TAB + "movq -40(%rbp), {}".format(OBJ_ADDR_REG) + NEWLINE
+        return TAB + "movq {}(%rbp), {}".format(OBJ_ADDR_REG) + NEWLINE
 
     def genMethodEntry(self):
         ret = TAB + "pushq %rbp" + NEWLINE + TAB + "movq %rsp, %rbp" + NEWLINE
@@ -908,8 +909,8 @@ if __name__ == "__main__":
 
     parser = make_parser()
 
-    # filename = sys.argv[1]
-    filename = "Tests/assign.cl"
+    filename = sys.argv[1]
+    # filename = "Tests/assign.cl"
 
     with open(filename) as f:
             cool_program_code = f.read()
@@ -921,6 +922,7 @@ if __name__ == "__main__":
 
     assembly_name = os.path.splitext(basename(filename))[0] 
     with open("x86/" + assembly_name + ".s", 'w') as f:
+        print("writing into file {}.s".format(assembly_name))
         f.write(code)
 
 

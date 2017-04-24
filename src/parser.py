@@ -1,5 +1,5 @@
-from cool_ast import *
-from lexer import *
+from .cool_ast import *
+from .lexer import *
 from ply3.ply import yacc as yacc
 
 

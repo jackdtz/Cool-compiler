@@ -53,6 +53,10 @@ Main_protoObj:
     .quad    3
     .quad    Main_dispatch_table
 
+Object_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
+
 String_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
@@ -60,7 +64,7 @@ String_dispatch_table:
     .quad    String_concat
     .quad    String_substr
 
-Object_dispatch_table:
+Bool_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
 
@@ -84,21 +88,17 @@ IO_dispatch_table:
     .quad    IO_out_int
     .quad    _IO_in_string
     .quad    _IO_in_int
-
-Bool_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
-int_const0:
-    .quad    3
-    .quad    4
-    .quad    Int_dispatch_table
-    .quad    0
-
 int_const1:
     .quad    3
     .quad    4
     .quad    Int_dispatch_table
     .quad    13
+
+int_const0:
+    .quad    3
+    .quad    4
+    .quad    Int_dispatch_table
+    .quad    0
 
 string_const0:
     .quad    2

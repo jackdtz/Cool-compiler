@@ -1,5 +1,5 @@
-from cool_types import *
-import cool_global as GLOBAL
+from .cool_types import *
+from . import cool_global as GLOBAL
 
 
 class Scope(object):

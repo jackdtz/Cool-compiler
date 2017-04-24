@@ -1,7 +1,7 @@
-from scope import *
-from cool_types import *
+from .scope import *
+from .cool_types import *
 from typing import List
-import cool_global as GLOBAL
+from . import cool_global as GLOBAL
 from random import randint
 
 

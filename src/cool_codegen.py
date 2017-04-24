@@ -1,8 +1,8 @@
-from cool_ast import *
-from cool_global import *
+from .cool_ast import *
+from .cool_global import *
 from collections import OrderedDict
 from operator import itemgetter
-from utilities import *
+from .utilities import *
 
 # %rax accumulator
 # %rdi self object address

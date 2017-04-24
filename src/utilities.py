@@ -1,4 +1,4 @@
-from cool_global import *
+from .cool_global import *
 
 def align(n, alignment):
     if n % alignment == 0:

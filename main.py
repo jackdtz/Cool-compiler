@@ -1,14 +1,13 @@
 
 
-from parser import *
-import cool_global as GLOBAL
-from cool_codegen import *
+from src.parser import *
+import src.cool_global as GLOBAL
+from src.cool_codegen import *
 
 if __name__ == "__main__":
     import sys
     import os
     import glob
-    from parser import make_parser
     from os.path import basename
     import subprocess
 

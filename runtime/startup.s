@@ -3,6 +3,7 @@ obj_tag = 0
 obj_size = 8
 obj_disp = 16
 obj_attr = 24
+string_str_offset = 32
 
 .data
     .globl _main
@@ -106,15 +107,8 @@ obj_attr = 24
         pushq %rbp
         movq %rsp, %rbp
 
-        subq $16, %rsp
-        movq %rdi, 0(%rsp)
-
         movq %rsi, %rdi
         callq _print_int
-
-        movq 0(%rsp), %rax
-
-        addq $16, %rsp
 
         leave
         ret
@@ -123,13 +117,10 @@ obj_attr = 24
         pushq %rbp
         movq %rsp, %rbp
 
-        subq $8, %rsp
-        movq %rdi, 8(%rsp)
+        addq $string_str_offset, %rdi
 
-        movq %rsi, %rdi
         callq _string_length
 
-        addq $8, %rsp
         leave
         ret   
 

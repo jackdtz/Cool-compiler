@@ -53,17 +53,20 @@ Main_protoObj:
     .quad    3
     .quad    Main_dispatch_table
 
-Int_dispatch_table:
+String_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
+    .quad    String_length
+    .quad    String_concat
+    .quad    String_substr
+
+Object_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
 
-IO_dispatch_table:
+Int_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
-    .quad    IO_out_string
-    .quad    IO_out_int
-    .quad    _IO_in_string
-    .quad    _IO_in_int
 
 Main_dispatch_table:
     .quad    Object_abort
@@ -74,31 +77,28 @@ Main_dispatch_table:
     .quad    _IO_in_int
     .quad    Main_main
 
+IO_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
+    .quad    IO_out_string
+    .quad    IO_out_int
+    .quad    _IO_in_string
+    .quad    _IO_in_int
+
 Bool_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
-
-Object_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
-
-String_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
-    .quad    String_length
-    .quad    String_concat
-    .quad    String_substr
-int_const1:
-    .quad    3
-    .quad    4
-    .quad    Int_dispatch_table
-    .quad    13
-
 int_const0:
     .quad    3
     .quad    4
     .quad    Int_dispatch_table
     .quad    0
+
+int_const1:
+    .quad    3
+    .quad    4
+    .quad    Int_dispatch_table
+    .quad    13
 
 string_const0:
     .quad    2
@@ -307,11 +307,13 @@ Main_main:
     subq $16, %rsp
     movq %rdi, -40(%rbp)
     movq -40(%rbp), %rax
+    pushq %rdi
+    subq $8, %rsp
     movq %rax, %rdi
     leaq string_const1(%rip), %rax
-    addq $32, %rax
+    pushq %rdi
+    subq $8, %rsp
     movq %rax, %rdi
-    movq -40(%rbp), %rdi
     movq 16(%rdi), %r10
     movq 16(%r10), %r10
     pushq %rdx
@@ -331,8 +333,9 @@ Main_main:
     popq %rsi
     popq %rcx
     popq %rdx
+    addq $8, %rsp
+    popq %rdi
     movq %rax, %rsi
-    movq -40(%rbp), %rdi
     movq 16(%rdi), %r10
     movq 24(%r10), %r10
     pushq %rdx
@@ -352,6 +355,8 @@ Main_main:
     popq %rsi
     popq %rcx
     popq %rdx
+    addq $8, %rsp
+    popq %rdi
     addq $16, %rsp
     popq %r14
     popq %r13

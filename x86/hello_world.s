@@ -70,14 +70,6 @@ IO_dispatch_table:
     .quad    _IO_in_string
     .quad    _IO_in_int
 
-Int_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
-
-Object_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
-
 Bool_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
@@ -88,6 +80,14 @@ String_dispatch_table:
     .quad    String_length
     .quad    String_concat
     .quad    String_substr
+
+Object_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
+
+Int_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
 int_const0:
     .quad    3
     .quad    4
@@ -307,11 +307,12 @@ Main_main:
     subq $16, %rsp
     movq %rdi, -40(%rbp)
     movq -40(%rbp), %rax
+    pushq %rdi
+    subq $8, %rsp
     movq %rax, %rdi
     leaq string_const1(%rip), %rax
     addq $32, %rax
     movq %rax, %rsi
-    movq -40(%rbp), %rdi
     movq 16(%rdi), %r10
     movq 16(%r10), %r10
     pushq %rdx
@@ -331,6 +332,8 @@ Main_main:
     popq %rsi
     popq %rcx
     popq %rdx
+    addq $8, %rsp
+    popq %rdi
     addq $16, %rsp
     popq %r14
     popq %r13

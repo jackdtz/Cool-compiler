@@ -2,6 +2,7 @@
 
     .globl Main_init
     .globl Main_protoObj
+    .globl String_protoObj
     .globl Main_main
 
 
@@ -18,10 +19,6 @@ class_objTab:
     .quad    Bool_init
     .quad    Main_protoObj
     .quad    Main_init
-    .quad    A_protoObj
-    .quad    A_init
-    .quad    B_protoObj
-    .quad    B_init
 
 Object_protoObj:
     .quad    0
@@ -58,74 +55,77 @@ Main_protoObj:
     .quad    Main_dispatch_table
     .quad    0
 
-A_protoObj:
-    .quad    6
-    .quad    3
-    .quad    A_dispatch_table
-
-B_protoObj:
-    .quad    7
-    .quad    3
-    .quad    B_dispatch_table
-
-IO_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
-    .quad    IO_out_string
-    .quad    IO_out_int
-    .quad    _IO_in_string
-    .quad    _IO_in_int
-
-B_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
-    .quad    IO_out_string
-    .quad    IO_out_int
-    .quad    _IO_in_string
-    .quad    _IO_in_int
-    .quad    B_toString
-
-Main_dispatch_table:
-    .quad    Main_main
-
-Int_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
-
-A_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
-    .quad    IO_out_string
-    .quad    IO_out_int
-    .quad    _IO_in_string
-    .quad    _IO_in_int
-    .quad    A_toString
-
-Bool_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
-
-Object_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
-
 String_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
     .quad    String_length
     .quad    String_concat
     .quad    String_substr
-int_const1:
-    .quad    3
-    .quad    4
-    .quad    Int_dispatch_table
-    .quad    9
 
+IO_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
+    .quad    IO_out_string
+    .quad    IO_out_int
+    .quad    IO_in_string
+    .quad    _IO_in_int
+
+Bool_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
+
+Main_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
+    .quad    IO_out_string
+    .quad    IO_out_int
+    .quad    IO_in_string
+    .quad    _IO_in_int
+    .quad    Main_pal
+    .quad    Main_main
+
+Object_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
+
+Int_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
 int_const0:
     .quad    3
     .quad    4
     .quad    Int_dispatch_table
     .quad    0
+
+int_const2:
+    .quad    3
+    .quad    4
+    .quad    Int_dispatch_table
+    .quad    2
+
+int_const4:
+    .quad    3
+    .quad    4
+    .quad    Int_dispatch_table
+    .quad    25
+
+int_const1:
+    .quad    3
+    .quad    4
+    .quad    Int_dispatch_table
+    .quad    1
+
+int_const5:
+    .quad    3
+    .quad    4
+    .quad    Int_dispatch_table
+    .quad    29
+
+int_const3:
+    .quad    3
+    .quad    4
+    .quad    Int_dispatch_table
+    .quad    18
 
 string_const0:
     .quad    2
@@ -135,20 +135,28 @@ string_const0:
     .asciz    ""
     .align    8
 
-string_const2:
+string_const3:
     .quad    2
     .quad    6
     .quad    String_dispatch_table
-    .quad    int_const1
-    .asciz    "class B"
+    .quad    int_const3
+    .asciz    "enter a string\n"
     .align    8
 
-string_const1:
+string_const5:
     .quad    2
     .quad    6
     .quad    String_dispatch_table
-    .quad    int_const1
-    .asciz    "class A"
+    .quad    int_const5
+    .asciz    "that was not a palindrome\n"
+    .align    8
+
+string_const4:
+    .quad    2
+    .quad    6
+    .quad    String_dispatch_table
+    .quad    int_const4
+    .asciz    "that was a palindrome\n"
     .align    8
 
 
@@ -332,7 +340,7 @@ Bool_init:
 
 
 
-Main_main:
+Main_pal:
     pushq %rbp
     movq %rsp, %rbp
     pushq %rbx
@@ -341,115 +349,15 @@ Main_main:
     pushq %r14
     subq $16, %rsp
     movq %rdi, -40(%rbp)
-    movq -40(%rbp), %rax
-    movq 24(%rax), %rax
-    pushq %rdi
+    movq %rsi, -48(%rbp)
+    movq -48(%rbp), %rax
+    push %rdi
     subq $8, %rsp
     movq %rax, %rdi
-    movq 16(%rdi), %r10
-    movq 48(%r10), %r10
-    pushq %rdx
-    pushq %rcx
-    pushq %rsi
-    pushq %rdi
-    pushq %r8
-    pushq %r9
-    pushq %r10
+    push %rdi
     subq $8, %rsp
-    callq *%r10
-    addq $8, %rsp
-    popq %r10
-    popq %r9
-    popq %r8
-    popq %rdi
-    popq %rsi
-    popq %rcx
-    popq %rdx
     addq $8, %rsp
     popq %rdi
-    addq $16, %rsp
-    popq %r14
-    popq %r13
-    popq %r12
-    popq %rbx
-    leave
-    ret
-
-Main_init:
-    pushq %rbp
-    movq %rsp, %rbp
-    pushq %rbx
-    pushq %r12
-    pushq %r13
-    pushq %r14
-    subq $16, %rsp
-    movq %rdi, -40(%rbp)
-    leaq B_protoObj(%rip), %rdi
-    pushq %rdx
-    pushq %rcx
-    pushq %rsi
-    pushq %rdi
-    pushq %r8
-    pushq %r9
-    pushq %r10
-    subq $8, %rsp
-    callq Object_copy
-    addq $8, %rsp
-    popq %r10
-    popq %r9
-    popq %r8
-    popq %rdi
-    popq %rsi
-    popq %rcx
-    popq %rdx
-
-    movq %rax, %rdi
-    pushq %rdx
-    pushq %rcx
-    pushq %rsi
-    pushq %rdi
-    pushq %r8
-    pushq %r9
-    pushq %r10
-    subq $8, %rsp
-    callq B_init
-    addq $8, %rsp
-    popq %r10
-    popq %r9
-    popq %r8
-    popq %rdi
-    popq %rsi
-    popq %rcx
-    popq %rdx
-
-    movq -40(%rbp), %rdi
-    movq %rax, 24(%rdi)
-    addq $16, %rsp
-    popq %r14
-    popq %r13
-    popq %r12
-    popq %rbx
-    leave
-    ret
-
-
-
-A_toString:
-    pushq %rbp
-    movq %rsp, %rbp
-    pushq %rbx
-    pushq %r12
-    pushq %r13
-    pushq %r14
-    subq $16, %rsp
-    movq %rdi, -40(%rbp)
-    movq -40(%rbp), %rax
-    pushq %rdi
-    subq $8, %rsp
-    movq %rax, %rdi
-    leaq string_const1(%rip), %rax
-    addq $32, %rax
-    movq %rax, %rsi
     movq 16(%rdi), %r10
     movq 16(%r10), %r10
     pushq %rdx
@@ -471,6 +379,286 @@ A_toString:
     popq %rdx
     addq $8, %rsp
     popq %rdi
+    pushq %rax
+    leaq int_const0(%rip), %rax
+    movq 24(%rax), %rax
+    popq %rdi
+    cmpq %rax, %rdi
+    sete %al
+    movzbq %al, %rax
+    cmpq $1, %rax
+    jne Main.pal.else.0
+    movq $1, %rax
+
+    jmp Main.pal.end.0
+
+Main.pal.else.0:
+    movq -48(%rbp), %rax
+    push %rdi
+    subq $8, %rsp
+    movq %rax, %rdi
+    push %rdi
+    subq $8, %rsp
+    addq $8, %rsp
+    popq %rdi
+    movq 16(%rdi), %r10
+    movq 16(%r10), %r10
+    pushq %rdx
+    pushq %rcx
+    pushq %rsi
+    pushq %rdi
+    pushq %r8
+    pushq %r9
+    pushq %r10
+    subq $8, %rsp
+    callq *%r10
+    addq $8, %rsp
+    popq %r10
+    popq %r9
+    popq %r8
+    popq %rdi
+    popq %rsi
+    popq %rcx
+    popq %rdx
+    addq $8, %rsp
+    popq %rdi
+    pushq %rax
+    leaq int_const1(%rip), %rax
+    movq 24(%rax), %rax
+    popq %rdi
+    cmpq %rax, %rdi
+    sete %al
+    movzbq %al, %rax
+    cmpq $1, %rax
+    jne Main.pal.else.1
+    movq $1, %rax
+
+    jmp Main.pal.end.1
+
+Main.pal.else.1:
+    movq -48(%rbp), %rax
+    push %rdi
+    subq $8, %rsp
+    movq %rax, %rdi
+    push %rdi
+    subq $8, %rsp
+    leaq int_const1(%rip), %rax
+    movq 24(%rax), %rax
+    movq %rax, %rdx
+    leaq int_const0(%rip), %rax
+    movq 24(%rax), %rax
+    movq %rax, %rsi
+    addq $8, %rsp
+    popq %rdi
+    movq 16(%rdi), %r10
+    movq 32(%r10), %r10
+    pushq %rdx
+    pushq %rcx
+    pushq %rsi
+    pushq %rdi
+    pushq %r8
+    pushq %r9
+    pushq %r10
+    subq $8, %rsp
+    callq *%r10
+    addq $8, %rsp
+    popq %r10
+    popq %r9
+    popq %r8
+    popq %rdi
+    popq %rsi
+    popq %rcx
+    popq %rdx
+    addq $8, %rsp
+    popq %rdi
+    pushq %rax
+    movq -48(%rbp), %rax
+    push %rdi
+    subq $8, %rsp
+    movq %rax, %rdi
+    push %rdi
+    subq $8, %rsp
+    leaq int_const1(%rip), %rax
+    movq 24(%rax), %rax
+    movq %rax, %rdx
+    movq -48(%rbp), %rax
+    push %rdi
+    subq $8, %rsp
+    movq %rax, %rdi
+    push %rdi
+    subq $8, %rsp
+    addq $8, %rsp
+    popq %rdi
+    movq 16(%rdi), %r10
+    movq 16(%r10), %r10
+    pushq %rdx
+    pushq %rcx
+    pushq %rsi
+    pushq %rdi
+    pushq %r8
+    pushq %r9
+    pushq %r10
+    subq $8, %rsp
+    callq *%r10
+    addq $8, %rsp
+    popq %r10
+    popq %r9
+    popq %r8
+    popq %rdi
+    popq %rsi
+    popq %rcx
+    popq %rdx
+    addq $8, %rsp
+    popq %rdi
+
+    push %rax
+    leaq int_const1(%rip), %rax
+    movq 24(%rax), %rax
+
+    movq %rax, %rdi
+    popq %rax
+    subq %rdi, %rax
+    movq %rax, %rsi
+    addq $8, %rsp
+    popq %rdi
+    movq 16(%rdi), %r10
+    movq 32(%r10), %r10
+    pushq %rdx
+    pushq %rcx
+    pushq %rsi
+    pushq %rdi
+    pushq %r8
+    pushq %r9
+    pushq %r10
+    subq $8, %rsp
+    callq *%r10
+    addq $8, %rsp
+    popq %r10
+    popq %r9
+    popq %r8
+    popq %rdi
+    popq %rsi
+    popq %rcx
+    popq %rdx
+    addq $8, %rsp
+    popq %rdi
+    popq %rdi
+    cmpq %rax, %rdi
+    sete %al
+    movzbq %al, %rax
+    cmpq $1, %rax
+    jne Main.pal.else.2
+    movq -40(%rbp), %rax
+    push %rdi
+    subq $8, %rsp
+    movq %rax, %rdi
+    push %rdi
+    subq $8, %rsp
+    movq -48(%rbp), %rax
+    push %rdi
+    subq $8, %rsp
+    movq %rax, %rdi
+    push %rdi
+    subq $8, %rsp
+    movq -48(%rbp), %rax
+    push %rdi
+    subq $8, %rsp
+    movq %rax, %rdi
+    push %rdi
+    subq $8, %rsp
+    addq $8, %rsp
+    popq %rdi
+    movq 16(%rdi), %r10
+    movq 16(%r10), %r10
+    pushq %rdx
+    pushq %rcx
+    pushq %rsi
+    pushq %rdi
+    pushq %r8
+    pushq %r9
+    pushq %r10
+    subq $8, %rsp
+    callq *%r10
+    addq $8, %rsp
+    popq %r10
+    popq %r9
+    popq %r8
+    popq %rdi
+    popq %rsi
+    popq %rcx
+    popq %rdx
+    addq $8, %rsp
+    popq %rdi
+
+    push %rax
+    leaq int_const2(%rip), %rax
+    movq 24(%rax), %rax
+
+    movq %rax, %rdi
+    popq %rax
+    subq %rdi, %rax
+    movq %rax, %rdx
+    leaq int_const1(%rip), %rax
+    movq 24(%rax), %rax
+    movq %rax, %rsi
+    addq $8, %rsp
+    popq %rdi
+    movq 16(%rdi), %r10
+    movq 32(%r10), %r10
+    pushq %rdx
+    pushq %rcx
+    pushq %rsi
+    pushq %rdi
+    pushq %r8
+    pushq %r9
+    pushq %r10
+    subq $8, %rsp
+    callq *%r10
+    addq $8, %rsp
+    popq %r10
+    popq %r9
+    popq %r8
+    popq %rdi
+    popq %rsi
+    popq %rcx
+    popq %rdx
+    addq $8, %rsp
+    popq %rdi
+    movq %rax, %rsi
+    addq $8, %rsp
+    popq %rdi
+    movq 16(%rdi), %r10
+    movq 48(%r10), %r10
+    pushq %rdx
+    pushq %rcx
+    pushq %rsi
+    pushq %rdi
+    pushq %r8
+    pushq %r9
+    pushq %r10
+    subq $8, %rsp
+    callq *%r10
+    addq $8, %rsp
+    popq %r10
+    popq %r9
+    popq %r8
+    popq %rdi
+    popq %rsi
+    popq %rcx
+    popq %rdx
+    addq $8, %rsp
+    popq %rdi
+
+    jmp Main.pal.end.2
+
+Main.pal.else.2:
+    movq $0, %rax
+
+Main.pal.end.2:
+
+Main.pal.end.1:
+
+Main.pal.end.0:
     addq $16, %rsp
     popq %r14
     popq %r13
@@ -479,7 +667,195 @@ A_toString:
     leave
     ret
 
-A_init:
+
+Main_main:
+    pushq %rbp
+    movq %rsp, %rbp
+    pushq %rbx
+    pushq %r12
+    pushq %r13
+    pushq %r14
+    subq $16, %rsp
+    movq %rdi, -40(%rbp)
+    leaq int_const1(%rip), %rax
+    movq 24(%rax), %rax
+    negq %rax
+    movq -40(%rbp), %rdi
+    movq %rax, 24(%rdi)
+
+    movq -40(%rbp), %rax
+    push %rdi
+    subq $8, %rsp
+    movq %rax, %rdi
+    push %rdi
+    subq $8, %rsp
+    leaq string_const3(%rip), %rax
+    addq $32, %rax
+    movq %rax, %rsi
+    addq $8, %rsp
+    popq %rdi
+    movq 16(%rdi), %r10
+    movq 16(%r10), %r10
+    pushq %rdx
+    pushq %rcx
+    pushq %rsi
+    pushq %rdi
+    pushq %r8
+    pushq %r9
+    pushq %r10
+    subq $8, %rsp
+    callq *%r10
+    addq $8, %rsp
+    popq %r10
+    popq %r9
+    popq %r8
+    popq %rdi
+    popq %rsi
+    popq %rcx
+    popq %rdx
+    addq $8, %rsp
+    popq %rdi
+
+    movq -40(%rbp), %rax
+    push %rdi
+    subq $8, %rsp
+    movq %rax, %rdi
+    push %rdi
+    subq $8, %rsp
+    movq -40(%rbp), %rax
+    push %rdi
+    subq $8, %rsp
+    movq %rax, %rdi
+    push %rdi
+    subq $8, %rsp
+    addq $8, %rsp
+    popq %rdi
+    movq 16(%rdi), %r10
+    movq 32(%r10), %r10
+    pushq %rdx
+    pushq %rcx
+    pushq %rsi
+    pushq %rdi
+    pushq %r8
+    pushq %r9
+    pushq %r10
+    subq $8, %rsp
+    callq *%r10
+    addq $8, %rsp
+    popq %r10
+    popq %r9
+    popq %r8
+    popq %rdi
+    popq %rsi
+    popq %rcx
+    popq %rdx
+    addq $8, %rsp
+    popq %rdi
+    movq %rax, %rsi
+    addq $8, %rsp
+    popq %rdi
+    movq 16(%rdi), %r10
+    movq 48(%r10), %r10
+    pushq %rdx
+    pushq %rcx
+    pushq %rsi
+    pushq %rdi
+    pushq %r8
+    pushq %r9
+    pushq %r10
+    subq $8, %rsp
+    callq *%r10
+    addq $8, %rsp
+    popq %r10
+    popq %r9
+    popq %r8
+    popq %rdi
+    popq %rsi
+    popq %rcx
+    popq %rdx
+    addq $8, %rsp
+    popq %rdi
+    cmpq $1, %rax
+    jne Main.main.else.3
+    movq -40(%rbp), %rax
+    push %rdi
+    subq $8, %rsp
+    movq %rax, %rdi
+    push %rdi
+    subq $8, %rsp
+    leaq string_const4(%rip), %rax
+    addq $32, %rax
+    movq %rax, %rsi
+    addq $8, %rsp
+    popq %rdi
+    movq 16(%rdi), %r10
+    movq 16(%r10), %r10
+    pushq %rdx
+    pushq %rcx
+    pushq %rsi
+    pushq %rdi
+    pushq %r8
+    pushq %r9
+    pushq %r10
+    subq $8, %rsp
+    callq *%r10
+    addq $8, %rsp
+    popq %r10
+    popq %r9
+    popq %r8
+    popq %rdi
+    popq %rsi
+    popq %rcx
+    popq %rdx
+    addq $8, %rsp
+    popq %rdi
+
+    jmp Main.main.end.3
+
+Main.main.else.3:
+    movq -40(%rbp), %rax
+    push %rdi
+    subq $8, %rsp
+    movq %rax, %rdi
+    push %rdi
+    subq $8, %rsp
+    leaq string_const5(%rip), %rax
+    addq $32, %rax
+    movq %rax, %rsi
+    addq $8, %rsp
+    popq %rdi
+    movq 16(%rdi), %r10
+    movq 16(%r10), %r10
+    pushq %rdx
+    pushq %rcx
+    pushq %rsi
+    pushq %rdi
+    pushq %r8
+    pushq %r9
+    pushq %r10
+    subq $8, %rsp
+    callq *%r10
+    addq $8, %rsp
+    popq %r10
+    popq %r9
+    popq %r8
+    popq %rdi
+    popq %rsi
+    popq %rcx
+    popq %rdx
+    addq $8, %rsp
+    popq %rdi
+
+Main.main.end.3:
+    addq $16, %rsp
+    popq %r14
+    popq %r13
+    popq %r12
+    popq %rbx
+    leave
+    ret
+
+Main_init:
     pushq %rbp
     movq %rsp, %rbp
     pushq %rbx
@@ -503,84 +879,13 @@ A_init:
     popq %rsi
     popq %rcx
     popq %rdx
-    popq %r14
-    popq %r13
-    popq %r12
-    popq %rbx
-    leave
-    ret
-
-
-
-B_toString:
-    pushq %rbp
-    movq %rsp, %rbp
-    pushq %rbx
-    pushq %r12
-    pushq %r13
-    pushq %r14
     subq $16, %rsp
     movq %rdi, -40(%rbp)
-    movq -40(%rbp), %rax
-    pushq %rdi
-    subq $8, %rsp
-    movq %rax, %rdi
-    leaq string_const2(%rip), %rax
-    addq $32, %rax
-    movq %rax, %rsi
-    movq 16(%rdi), %r10
-    movq 16(%r10), %r10
-    pushq %rdx
-    pushq %rcx
-    pushq %rsi
-    pushq %rdi
-    pushq %r8
-    pushq %r9
-    pushq %r10
-    subq $8, %rsp
-    callq *%r10
-    addq $8, %rsp
-    popq %r10
-    popq %r9
-    popq %r8
-    popq %rdi
-    popq %rsi
-    popq %rcx
-    popq %rdx
-    addq $8, %rsp
-    popq %rdi
+    leaq int_const0(%rip), %rax
+    movq 24(%rax), %rax
+    movq -40(%rbp), %rdi
+    movq %rax, 24(%rdi)
     addq $16, %rsp
-    popq %r14
-    popq %r13
-    popq %r12
-    popq %rbx
-    leave
-    ret
-
-B_init:
-    pushq %rbp
-    movq %rsp, %rbp
-    pushq %rbx
-    pushq %r12
-    pushq %r13
-    pushq %r14
-    pushq %rdx
-    pushq %rcx
-    pushq %rsi
-    pushq %rdi
-    pushq %r8
-    pushq %r9
-    pushq %r10
-    subq $8, %rsp
-    callq A_init
-    addq $8, %rsp
-    popq %r10
-    popq %r9
-    popq %r8
-    popq %rdi
-    popq %rsi
-    popq %rcx
-    popq %rdx
     popq %r14
     popq %r13
     popq %r12

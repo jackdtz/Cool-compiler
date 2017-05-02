@@ -1,6 +1,6 @@
 from .cool_ast import *
 from .lexer import *
-from ply3.ply import yacc as yacc
+from ply import yacc as yacc
 
 
 class Parser(object):
@@ -38,7 +38,7 @@ class Parser(object):
 
     def build(self):
         self.tokens = self.lexer.tokens
-        self.parser = yacc.yacc(module=self)
+        self.parser = yacc.yacc(module=self, errorlog=yacc.NullLogger())
 
     def parse(self, src):
         self.src = src

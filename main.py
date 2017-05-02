@@ -14,8 +14,8 @@ if __name__ == "__main__":
 
     parser = make_parser()
 
-    filename = sys.argv[1]
-    # filename = "Tests/bad1.cl"
+    # filename = sys.argv[1]
+    filename = "Tests/palindrome.cl"
 
     with open(filename) as f:
         cool_program_code = f.read()
@@ -43,8 +43,8 @@ if __name__ == "__main__":
 
         ])
 
-    subprocess.run(
-        [
-            "./bin/{}".format(assembly_name)
-        ]
-    )
+    # subprocess.run(
+    #     [
+    #         "./bin/{}".format(assembly_name)
+    #     ]
+    # )

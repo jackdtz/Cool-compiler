@@ -2,7 +2,6 @@
 from .cool_types import ObjectType, TopLevelClass, SelfType
 from .cool_types import StringType, BooleanType, IntegerType
 from .scope import *
-from .cool_values import *
 
 objectType = ObjectType()
 stringType = StringType(parent=objectType)
@@ -11,8 +10,6 @@ booleanType = BooleanType(parent=objectType)
 selfType = SelfType()
 
 topLevelClass = TopLevelClass("topLevel")
-
-void = Void()
 
 
 # Code Generation

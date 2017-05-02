@@ -28,18 +28,13 @@ runtime_getline(char s[], int lim)
         s[i++] = c;
     }
 
-    if (c == '\n') 
-    {
-        s[i++] = c;
-    }
-
     s[i] = '\0';
 
     return i;
 }
 
 char* 
-IO_in_string()
+input_string()
 {
     int max = 256;
 
@@ -104,11 +99,24 @@ string_concat(const char *s1, const char *s2)
 
 
 char*
-string_substr(const char *s, int64_t start, int64_t end)
+string_substr(const char *s, int64_t start, int64_t length)
 {
-    char *ret = (char*)malloc(sizeof(char) * (end - start - 1));
+    char *ret = (char*)malloc(sizeof(char) * (length + 1));
 
-    memcpy(ret, &s[start], end - start - 1);
+    if (ret == NULL)
+    {
+        abort();
+    }
+
+    strncpy(ret, &s[start], length);
+
+    ret[length] = '\0';
 
     return ret;
 }
+
+// int main(void) {
+
+//     printf("%s", string_substr("abba", 3, 1));
+    
+// }

@@ -3,6 +3,8 @@ obj_tag = 0
 obj_size = 8
 obj_disp = 16
 obj_attr = 24
+
+string_len_offset = 24
 string_str_offset = 32
 
 .data
@@ -113,13 +115,43 @@ string_str_offset = 32
         leave
         ret
 
+    IO_in_string:
+        push %rbp
+        movq %rsp, %rbp
+
+        leaq String_protoObj(%rip), %rdi
+        callq Object_copy
+        
+        push %rax
+        subq $8, %rsp
+        callq _input_string
+        addq $8, %rsp
+        popq %rdi
+
+        movq %rax, string_str_offset(%rdi)
+
+        push %rdi
+        movq %rax, %rdi
+        subq $8, %rsp
+        callq _string_length
+        addq $8, %rsp
+        popq %rdi
+
+        movq %rax, string_len_offset(%rdi)
+
+        movq %rdi, %rax
+        leave 
+        ret
+
+    
+
+        
+
     String_length:
         pushq %rbp
         movq %rsp, %rbp
 
-        addq $string_str_offset, %rdi
-
-        callq _string_length
+        movq string_len_offset(%rdi), %rax
 
         leave
         ret   
@@ -129,14 +161,35 @@ string_str_offset = 32
         pushq %rbp
         movq %rsp, %rbp
 
-        subq $8, %rsp
-        movq %rdi, 8(%rsp)
-
-        movq %rsi, %rdi
-        movq %rdx, %rsi
+        movq string_str_offset(%rdi), %rdi
+        movq string_str_offset(%rsi), %rsi
         callq _string_concat
 
+        pushq %rax
+        subq $8, %rsp
+
+        leaq String_protoObj(%rip), %rdi
+        callq Object_copy
+
         addq $8, %rsp
+        popq %rdi               # new string address - %rax
+                                # new string content - %rdi
+
+        movq %rdi, string_str_offset(%rax)
+
+        push %rax
+        subq $8, %rsp
+
+        callq _string_length
+
+        addq $8, %rsp
+        popq %rdi               # string length - %rax
+                                # string address - %rdi
+
+        movq %rax, string_len_offset(%rdi)
+
+        movq %rdi, %rax
+
         leave
         ret
 
@@ -145,15 +198,34 @@ string_str_offset = 32
         pushq %rbp
         movq %rsp, %rbp
 
-        subq $8, %rsp
-        movq %rdi, 8(%rsp)
+        movq string_str_offset(%rdi), %rdi
+        callq _string_substr
 
-        movq %rsi, %rdi
-        movq %rdx, %rsi
-        movq %rcx, %rdx
-        callq _string_concat
+        pushq %rax
+        subq $8, %rsp
+
+        leaq String_protoObj(%rip), %rdi
+        callq Object_copy
 
         addq $8, %rsp
+        popq %rdi                       
+
+        # rdi - new sub string
+        # rax - new string address
+
+        movq %rdi, string_str_offset(%rax)
+
+        pushq %rax
+        subq $8, %rsp
+
+        callq _string_length
+
+        addq $8, %rsp
+        popq %rdi
+
+        movq %rax, string_len_offset(%rdi)
+        movq %rdi, %rax
+
         leave
         ret
 

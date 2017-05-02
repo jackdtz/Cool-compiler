@@ -394,7 +394,7 @@ class Dispatch(Expr):
 
         for arg_ty, param_ty in zip(arg_tys, function_ty.param_tys):
             if not arg_ty.isSubclassOf(param_ty):
-                self.error("type mismatch dispatch")
+                self.error("type mismatch at method call: expected type {}, but got {}".format(param_ty, arg_ty))
                 
 
         if function_ty.ret_ty == GLOBAL.selfType:
@@ -522,8 +522,12 @@ class Let(Expr):
         let_scope.inheritClassScope = scope.inheritClassScope
         scope.add('let' + str(randint(0, 10000)), let_scope, None)
 
-        letVarDecls = []
+        letVarDecls = {}
         for decl in self.declareVars:
+
+            if decl.id in letVarDecls:
+                self.error("{} is already defined in the current scope".format(decl.id))
+
             decType = self.getType(scope, decl.decType)
 
             if decType is GLOBAL.selfType:
@@ -536,12 +540,12 @@ class Let(Expr):
                     self.error("type mismatch at let declaration: init type {} is not a subclass of declared type {}".format(
                         str(decInitType.name), str(decType.name)))
                     
-                letVarDecls.append((decl.id, decInitVal, decType))
+                letVarDecls[decl.id] = (decInitVal, decType)
             else:
                 initVal = self.getInitByType(decType)
-                letVarDecls.append((decl.id, initVal, decType))
+                letVarDecls[decl.id] = (initVal, decType)
 
-            for id, val, ty in letVarDecls:
+            for id, (val, ty) in letVarDecls.items():
                 let_scope.add(id, val, ty)
 
         return self.bodyExpr.typecheck(let_scope)

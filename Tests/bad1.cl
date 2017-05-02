@@ -12,6 +12,6 @@ class B inherits A {
 
 class Main {
       main() : Int {
-      	     let test : A in test@B.method1() -- error, A is a superclass of B
+          let test : A in test@B.method1() -- error, A is a superclass of B
       };
 };

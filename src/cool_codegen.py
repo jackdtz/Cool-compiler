@@ -30,7 +30,7 @@ class CGen(object):
 
 
         self.predefinedClassName = ['Object', 'IO', 'Int', 'String', 'Bool']
-        self.rt_defined_methods = ['IO_in_int', 'IO_in_string']
+        self.rt_defined_methods = ['IO_in_int']
         
         self.inttable = {}
         self.stringtable = {}
@@ -65,6 +65,7 @@ class CGen(object):
         ret = "\n"
         ret += TAB + ".globl Main_init" + NEWLINE
         ret += TAB + ".globl Main_protoObj" + NEWLINE
+        ret += TAB + ".globl String_protoObj" + NEWLINE
         ret += TAB + ".globl Main_main" + NEWLINE
         ret += NEWLINE
 
@@ -423,9 +424,8 @@ class CGen(object):
 
         ret += self.genMethodEntry()
 
-        if method.methodName == "init":
+        if method.methodName == "init" and c.inheritType:
             ret += self.genFuncCall("{}_init".format(c.inheritType))
-            attrs = self.getAttributesFromClass(c)
 
         num_params = len(method.formalParams) + 1
 
@@ -515,7 +515,6 @@ class CGen(object):
 
         ret = TAB + "leaq {}_protoObj(%rip), %rdi".format(object_name) + NEWLINE
         ret += self.genFuncCall("Object_copy") + NEWLINE
-        # ret += TAB + "callq Object_copy" + NEWLINE
         ret += TAB + "movq %rax, %rdi" + NEWLINE
         ret += self.genFuncCall("{}_init".format(object_name)) + NEWLINE
 
@@ -695,7 +694,7 @@ class CGen(object):
         return ret, 'Object'
         
     
-    def code_genIf(self, c, method, num_locals, ifExpr):
+    def code_genIf(self, c, method, num_locals, ifExpr, lvalue):
 
         seqNum = self.genCondSeq()
         els_label = c.className + "."  + method.methodName + ".else." + str(seqNum)
@@ -771,24 +770,35 @@ class CGen(object):
 
         obj_code, obj_ty = self.code_genExpr(c, method, num_locals, dispatchExpr.objExpr, True)
         ret += obj_code
-        ret += TAB + "pushq %rdi" + NEWLINE
+        ret += TAB + "push %rdi" + NEWLINE
         ret += TAB + "subq $8, %rsp" + NEWLINE
         ret += TAB + "movq %rax, %rdi" + NEWLINE
 
         methodName = dispatchExpr.methodName
         arg_len = len(dispatchExpr.arguments)
+
+        # rdi might be used in code_gen for arguments, so we need to push it again
+        ret += TAB + "push %rdi" + NEWLINE
+        ret += TAB + "subq $8, %rsp" + NEWLINE
         
         stack_count = 0
         for i, arg in reversed(list(enumerate(dispatchExpr.arguments))):
             arg_code, _ = self.code_genExpr(c, method, num_locals, arg, lvalue)
+
+            # ret += self.caller_save_push()
             ret += arg_code
+            # ret += self.caller_save_pop()
+
             if i < 5:   
                 # first reg is saved for object (could be SELF or other type)
                 ret += TAB + "movq %rax, {}".format(self.param_regs[i + 1]) + NEWLINE
             else:
                 ret += TAB + "pushq %rax" + NEWLINE
                 stack_count += 1
+        
 
+        ret += TAB + "addq $8, %rsp" + NEWLINE
+        ret += TAB + "popq %rdi" + NEWLINE
         ret += TAB + "movq {}(%rdi), {}".format(DISP_OFFSET, DISP_FUNC_REG) + NEWLINE
 
         # get the function offset from dispatch table
@@ -852,6 +862,17 @@ class CGen(object):
     def genFuncCall(self, name):
         ret = ""
 
+        ret += self.caller_save_push()
+        
+        ret += TAB + "callq {}".format(name) + NEWLINE
+
+        ret += self.caller_save_pop()
+
+        return ret
+
+    def caller_save_push(self):
+        ret = ""
+
         for reg in self.caller_save:
             ret += TAB + "pushq {}".format(reg) + NEWLINE
 
@@ -859,7 +880,12 @@ class CGen(object):
         # there are 7 caller save regs, so we need 8 more bytes to 
         # make sure that the stack is 16 bytes aligned
         ret += TAB + "subq $8, %rsp" + NEWLINE
-        ret += TAB + "callq {}".format(name) + NEWLINE
+
+        return ret
+
+    def caller_save_pop(self):
+
+        ret = ""
         ret += TAB + "addq $8, %rsp" + NEWLINE
 
 
@@ -867,6 +893,8 @@ class CGen(object):
             ret += TAB + "popq {}".format(reg) + NEWLINE
 
         return ret
+
+
 
         
 
@@ -885,7 +913,7 @@ if __name__ == "__main__":
     parser = make_parser()
 
     # filename = sys.argv[1]
-    filename = "Tests/strlen.cl"
+    filename = "Tests/palindrome.cl"
 
     with open(filename) as f:
             cool_program_code = f.read()

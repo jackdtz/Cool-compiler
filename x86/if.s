@@ -2,7 +2,21 @@
 
     .globl Main_init
     .globl Main_protoObj
+    .globl String_protoObj
     .globl Main_main
+
+
+
+string_content0:
+    .asciz    ""
+    .align    8
+string_content2:
+    .asciz    "this is false\n"
+    .align    8
+string_content1:
+    .asciz    "this is true\n"
+    .align    8
+
 
 
 class_objTab:
@@ -58,17 +72,13 @@ Main_dispatch_table:
     .quad    Object_copy
     .quad    IO_out_string
     .quad    IO_out_int
-    .quad    _IO_in_string
+    .quad    IO_in_string
     .quad    _IO_in_int
     .quad    Main_main
 
-IO_dispatch_table:
+Int_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
-    .quad    IO_out_string
-    .quad    IO_out_int
-    .quad    _IO_in_string
-    .quad    _IO_in_int
 
 Object_dispatch_table:
     .quad    Object_abort
@@ -85,9 +95,19 @@ String_dispatch_table:
     .quad    String_concat
     .quad    String_substr
 
-Int_dispatch_table:
+IO_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
+    .quad    IO_out_string
+    .quad    IO_out_int
+    .quad    IO_in_string
+    .quad    _IO_in_int
+int_const2:
+    .quad    3
+    .quad    4
+    .quad    Int_dispatch_table
+    .quad    17
+
 int_const1:
     .quad    3
     .quad    4
@@ -100,18 +120,12 @@ int_const0:
     .quad    Int_dispatch_table
     .quad    0
 
-int_const2:
-    .quad    3
-    .quad    4
-    .quad    Int_dispatch_table
-    .quad    17
-
 string_const0:
     .quad    2
     .quad    6
     .quad    String_dispatch_table
     .quad    int_const0
-    .asciz    ""
+    .quad    string_content0
     .align    8
 
 string_const2:
@@ -119,7 +133,7 @@ string_const2:
     .quad    6
     .quad    String_dispatch_table
     .quad    int_const2
-    .asciz    "this is false\n"
+    .quad    string_content2
     .align    8
 
 string_const1:
@@ -127,7 +141,7 @@ string_const1:
     .quad    6
     .quad    String_dispatch_table
     .quad    int_const1
-    .asciz    "this is true\n"
+    .quad    string_content1
     .align    8
 
 
@@ -216,12 +230,10 @@ String_init:
     subq $16, %rsp
     movq %rdi, -40(%rbp)
     leaq int_const0(%rip), %rax
-    movq 24(%rax), %rax
     movq -40(%rbp), %rdi
     movq %rax, 24(%rdi)
 
     leaq string_const0(%rip), %rax
-    addq $32, %rax
     movq -40(%rbp), %rdi
     movq %rax, 32(%rdi)
     addq $16, %rsp
@@ -260,7 +272,6 @@ Int_init:
     subq $16, %rsp
     movq %rdi, -40(%rbp)
     leaq int_const0(%rip), %rax
-    movq 24(%rax), %rax
     movq -40(%rbp), %rdi
     movq %rax, 24(%rdi)
     addq $16, %rsp
@@ -324,10 +335,15 @@ Main_main:
     cmpq $1, %rax
     jne Main.main.else.0
     movq -40(%rbp), %rax
+    push %rdi
+    subq $8, %rsp
     movq %rax, %rdi
+    push %rdi
+    subq $8, %rsp
     leaq string_const1(%rip), %rax
-    addq $32, %rax
     movq %rax, %rsi
+    addq $8, %rsp
+    popq %rdi
     movq 16(%rdi), %r10
     movq 16(%r10), %r10
     pushq %rdx
@@ -347,15 +363,22 @@ Main_main:
     popq %rsi
     popq %rcx
     popq %rdx
+    addq $8, %rsp
+    popq %rdi
 
     jmp Main.main.end.0
 
 Main.main.else.0:
     movq -40(%rbp), %rax
+    push %rdi
+    subq $8, %rsp
     movq %rax, %rdi
+    push %rdi
+    subq $8, %rsp
     leaq string_const2(%rip), %rax
-    addq $32, %rax
     movq %rax, %rsi
+    addq $8, %rsp
+    popq %rdi
     movq 16(%rdi), %r10
     movq 16(%r10), %r10
     pushq %rdx
@@ -375,6 +398,8 @@ Main.main.else.0:
     popq %rsi
     popq %rcx
     popq %rdx
+    addq $8, %rsp
+    popq %rdi
 
 Main.main.end.0:
     addq $16, %rsp

@@ -34,6 +34,7 @@ class CGen(object):
         
         self.inttable = {}
         self.stringtable = {}
+        self.str_contenttable = {}
         self.booltable = {}
         self.tagtable = {}
 
@@ -43,7 +44,11 @@ class CGen(object):
     def initialize(self):
         seq = self.genSeqNum()
         self.inttable['0'] = "int_const" + str(seq)
-        self.stringtable[''] = "string_const" + str(seq)
+        
+        self.stringtable[''] = {}
+        self.stringtable['']['label'] = "string_const" + str(seq)
+        self.stringtable['']['content'] = "string_content" + str(seq)
+        self.str_contenttable["string_content" + str(seq)] = ""
 
 
     def genTag(self):
@@ -112,6 +117,8 @@ class CGen(object):
 
     def collectGlobalData(self):
 
+        attr_start_index = 3
+
         # generate prototype objects
         all_classes = self.getPredeinedClasses() + self.program.classes
 
@@ -124,7 +131,7 @@ class CGen(object):
             prototype.append(tag)         # tag
 
             attributes = [f for f in c.features if isinstance(f, FeatureAttribute)]
-            prototype.append(len(attributes) + 3)   # size
+            prototype.append(len(attributes) + attr_start_index)   # size
 
             dispatchTab_lab = c.className + UNDERSCORE + DISPATCH_TABLE
             prototype.append(dispatchTab_lab)
@@ -138,7 +145,7 @@ class CGen(object):
                 prototype.append(0)
 
                 self.attrtable[c.className][attr.id] = {}
-                self.attrtable[c.className][attr.id]['offset'] = (i + 3) * self.wordsize
+                self.attrtable[c.className][attr.id]['offset'] = (i + attr_start_index) * self.wordsize
                 self.attrtable[c.className][attr.id]['type'] = attr.decType
                 
             self.prototypes[c.className] = prototype
@@ -146,12 +153,12 @@ class CGen(object):
         for c in all_classes:
             if c.inheritType:
                 parentProtObj = self.prototypes[c.inheritType]
-                parentAttrs = parentProtObj[3:]
+                parentAttrs = parentProtObj[attr_start_index :]
                 parentMethods = self.dispatchTable[c.inheritType]
 
                 protoObj = self.prototypes[c.className]
-                protoObjAttrs = protoObj[3:]
-                self.prototypes[c.className] = protoObj[0:3] + parentAttrs + protoObjAttrs
+                protoObjAttrs = protoObj[attr_start_index:]
+                self.prototypes[c.className] = protoObj[0:attr_start_index] + parentAttrs + protoObjAttrs
                 protoMethods = self.dispatchTable[c.className]
                 self.dispatchTable[c.className] = parentMethods + protoMethods
 
@@ -230,6 +237,8 @@ class CGen(object):
         dispathTable = "Int_dispatch_table"
 
         for int_str, label in self.inttable.items():
+
+
             const = [
                 TAB + WORD + TAB + int_tag + NEWLINE,
                 TAB + WORD + TAB + size + NEWLINE,
@@ -248,8 +257,10 @@ class CGen(object):
         size = '6'
         dispathTable = "String_dispatch_table"
 
-        for string, label in self.stringtable.items():
+        for string, info in self.stringtable.items():
             len_const = self.inttable[str(len(string))]
+            label = info['label']
+            content_label = info['content']
 
             string = '\"\"' if string == '' else string
 
@@ -258,7 +269,7 @@ class CGen(object):
                 TAB + WORD + TAB + size + NEWLINE,
                 TAB + WORD + TAB + dispathTable + NEWLINE,
                 TAB + WORD + TAB + len_const + NEWLINE,
-                TAB + ASCIZ + TAB + string + NEWLINE,
+                TAB + WORD + TAB + content_label + NEWLINE,
                 TAB + ALIGN + TAB + str(self.wordsize) + NEWLINE
             ]
 
@@ -274,17 +285,33 @@ class CGen(object):
         if ty == "Int":
             zero_label = self.inttable['0']
             ret += TAB + "leaq {}(%rip), %rax".format(zero_label) + NEWLINE
-            ret += TAB + "addq {}, %rax".format(INTCONST_VALOFFSET) + NEWLINE
-            ret += TAB + "movq (%rax), %rax" + NEWLINE
+            # ret += TAB + "movq {}(%rax), %rax".format(INTCONST_VALOFFSET) + NEWLINE
+            # ret += TAB + "movq (%rax), %rax" + NEWLINE
         elif ty == "String":
-            empty_label = self.stringtable['']
+            empty_label = self.stringtable['']['label']
             ret += TAB + "leaq {}(%rip), %rax".format(empty_label) + NEWLINE
-            ret += TAB + "addq {}, %rax".format(STRCONST_STROFFSET) + NEWLINE
+            # ret += TAB + "movq {}(%rax), %rax".format(STRCONST_STROFFSET) + NEWLINE
         elif ty == "Bool":
             ret += TAB + "movq $0, %rax" + NEWLINE
         
 
         return ret
+
+
+    def code_genConstantContent(self):
+
+        ret = "" + NEWLINE + NEWLINE
+
+        for content_label, value in self.str_contenttable.items():
+            value = "\"\"" if value == "" else value
+            ret +=  content_label + COLON + NEWLINE + \
+                TAB + ASCIZ + TAB + value + NEWLINE + \
+                TAB + ALIGN + TAB + "8" + NEWLINE
+
+        # for content_label, value in self.int_contenttable.items():
+        #     ret += content_label + COLON + TAB + WORD + TAB + value + NEWLINE 
+
+        return ret + NEWLINE
         
             
 
@@ -305,10 +332,12 @@ class CGen(object):
         text_header = ".text" + NEWLINE
         text = self.code_genProgram()
 
+        const_content = self.code_genConstantContent() + NEWLINE
+
         data += self.code_genIntConsts() + NEWLINE
         data += self.codeg_genStringConsts() + NEWLINE
 
-        return data_header + globl_directives + data +  NEWLINE + text_header + text + NEWLINE
+        return data_header + globl_directives + const_content + data +  NEWLINE + text_header + text + NEWLINE
 
 
     def code_genProgram(self):
@@ -323,6 +352,8 @@ class CGen(object):
     def code_genClass(self, c):
 
         ret = ""
+        self.scope.enterScope()
+
         hasSeenInit = False
         hasAttrbutes = True if self.attrtable[c.className] else False
 
@@ -344,6 +375,7 @@ class CGen(object):
             ret += self.code_genMethod(c, defaultMethod)
         elif not hasAttrbutes:
             pass
+            
     
         return ret
 
@@ -372,10 +404,8 @@ class CGen(object):
 
         return method
 
-    
     def generateDefaulInit(self, c: 'class'):
         attrs = self.getAttributesFromClass(c)
-
         body = Block([])
 
         for id, initInfo in attrs.items():
@@ -464,67 +494,66 @@ class CGen(object):
         ret += TAB + "addq ${}, %rsp".format(stack_size) + NEWLINE
 
         ret += self.genMethodExit()
-
         self.scope.existScope()
 
         return label + COLON + NEWLINE + ret + NEWLINE
 
-
-    def code_genExpr(self, c, method, num_locals, expr, lvalue=False):
+    def code_genExpr(self, c, method, num_locals, expr, isLvalue=False):
         if isinstance(expr, AssignmentExpr):
-            return self.code_genAssignment(c, method, num_locals, expr, lvalue)
+            return self.code_genAssignment(c, method, num_locals, expr, isLvalue)
         elif isinstance(expr, Dispatch):
-            return self.code_genDispatch(c, method, num_locals, expr, lvalue)
+            return self.code_genDispatch(c, method, num_locals, expr, isLvalue)
         elif isinstance(expr, String):
-            return self.code_genString(c, method, num_locals, expr, lvalue)
+            return self.code_genString(c, method, num_locals, expr, isLvalue)
         elif isinstance(expr, Integer):
-            return self.code_genInteger(c, method, num_locals, expr, lvalue)
+            return self.code_genInteger(c, method, num_locals, expr, isLvalue)
         elif isinstance(expr, If):
-            return self.code_genIf(c, method, num_locals, expr, lvalue)
+            return self.code_genIf(c, method, num_locals, expr, isLvalue)
         elif isinstance(expr, Boolean):
-            return self.code_genBoolean(c, method, num_locals, expr, lvalue)
+            return self.code_genBoolean(c, method, num_locals, expr, isLvalue)
         elif isinstance(expr, While):
-            return self.code_genWhile(c, method, num_locals, expr, lvalue)
+            return self.code_genWhile(c, method, num_locals, expr, isLvalue)
         elif isinstance(expr, BinaryOp):
-            return self.code_genBinary(c, method, num_locals, expr, lvalue)
+            return self.code_genBinary(c, method, num_locals, expr, isLvalue)
         elif isinstance(expr, Not):
-            return self.code_genNot(c, method, num_locals, expr, lvalue)
+            return self.code_genNot(c, method, num_locals, expr, isLvalue)
         elif isinstance(expr, Self):
-            return self.code_genSelf(c, method, num_locals, expr, lvalue)
+            return self.code_genSelf(c, method, num_locals, expr, isLvalue)
         elif isinstance(expr, Id):
-            return self.code_genId(c, method, num_locals, expr, lvalue)
+            return self.code_genId(c, method, num_locals, expr, isLvalue)
         elif isinstance(expr, Block):
-            return self.code_genBlock(c, method, num_locals, expr, lvalue)
+            return self.code_genBlock(c, method, num_locals, expr, isLvalue)
         elif isinstance(expr, Let):
-            return self.code_genLet(c, method, num_locals, expr, lvalue)
+            return self.code_genLet(c, method, num_locals, expr, isLvalue)
         elif isinstance(expr, ParenExpr):
-            return self.code_genExpr(c, method, num_locals, expr.e, lvalue)
+            return self.code_genExpr(c, method, num_locals, expr.e, isLvalue)
         elif isinstance(expr, NewConstruct):
-            return self.code_genNew(c, method, num_locals, expr, lvalue)
+            return self.code_genNew(c, method, num_locals, expr, isLvalue)
         elif isinstance(expr, Neg):
-            return self.code_genNeg(c, method, num_locals, expr, lvalue)
+            return self.code_genNeg(c, method, num_locals, expr, isLvalue)
 
-    def code_genNeg(self, c, method, num_locals, expr, lvalue):
-        expr_code, expr_type = self.code_genExpr(c, method, num_locals, expr.expr, lvalue)
+    def code_genNeg(self, c, method, num_locals, expr, isLvalue):
+        expr_code, expr_type = self.code_genExpr(c, method, num_locals, expr.expr, isLvalue)
 
         return expr_code + TAB + "negq %rax" + NEWLINE, expr_type
 
-
-    def code_genNew(self, c, method, num_locals, newExpr, lvalue):
+    def code_genNew(self, c, method, num_locals, newExpr, isLvalue):
         object_name = newExpr.objType
 
         ret = TAB + "leaq {}_protoObj(%rip), %rdi".format(object_name) + NEWLINE
         ret += self.genFuncCall("Object_copy") + NEWLINE
         ret += TAB + "movq %rax, %rdi" + NEWLINE
+        ret += TAB + "pushq %rax" + NEWLINE
+        ret += TAB + "subq $8, %rsp" + NEWLINE
         ret += self.genFuncCall("{}_init".format(object_name)) + NEWLINE
+        ret += TAB + "addq $8, %rsp" + NEWLINE
+        ret += TAB + "popq %rax" + NEWLINE
 
         return ret, object_name
 
-    
-    def code_genLet(self, c, method, num_locals, letExpr, lvalue):
+    def code_genLet(self, c, method, num_locals, letExpr, isLvalue):
 
         self.scope.enterScope()
-
         decl_num = len(letExpr.declareVars)
 
         # save space on the stack for let varaibles
@@ -537,81 +566,80 @@ class CGen(object):
             self.scope.addId(id, offset, varDecl.decType)
 
             if varDecl.init:
-                init, _ = self.code_genExpr(c, method, num_locals + decl_num, varDecl.init, lvalue)
+                init, _ = self.code_genExpr(c, method, num_locals + decl_num, varDecl.init, True)
             else:
                 init = self.code_genInitValue(varDecl.decType)
                 
             ret += init
             ret += TAB + "movq %rax, {}(%rbp)".format(offset) + NEWLINE
 
-        body, body_type = self.code_genExpr(c, method, num_locals + decl_num, letExpr.bodyExpr, lvalue)
+        body, body_type = self.code_genExpr(c, method, num_locals + decl_num, letExpr.bodyExpr, isLvalue)
 
         ret += body
         self.scope.existScope()
 
         return ret, body_type     
 
-    def code_genBlock(self, c, method, num_locals, block, lvalue):
+    def code_genBlock(self, c, method, num_locals, block, isLvalue):
 
         codes = []
         for i in range(len(block.exprs) - 1):
-            ret, _ = self.code_genExpr(c, method, num_locals, block.exprs[i], lvalue)
+            ret, _ = self.code_genExpr(c, method, num_locals, block.exprs[i], isLvalue)
             codes.append(ret)
         
-        last_code, ty = self.code_genExpr(c, method, num_locals, block.exprs[-1], lvalue)
+        last_code, ty = self.code_genExpr(c, method, num_locals, block.exprs[-1], isLvalue)
         codes.append(last_code)
 
         return NEWLINE.join(codes), ty
 
-
-
-    def code_genSelf(self, c, method, num_locals, selfExpr, lvalue):
+    def code_genSelf(self, c, method, num_locals, selfExpr, isLvalue):
         return TAB + "movq {}(%rbp), %rax".format(STACK_SELF_OFFST) + NEWLINE, 'Self'
     
-    def code_genId(self, c, method, num_locals, idExpr, lvalue):
+    def code_genId(self, c, method, num_locals, idExpr, isLvalue):
+
+        ret = ""
+        ty = None
 
         offset = self.scope.lookup_offset(idExpr.id)
         if offset:
             ty = self.scope.lookup_type(idExpr.id)
-            return TAB + "movq {}(%rbp), %rax".format(offset) + NEWLINE, ty
+            ret += TAB + "movq {}(%rbp), %rax".format(offset) + NEWLINE
 
         # id is an instance variable
         if idExpr.id in self.attrtable[c.className]:
             object_addr_offset = self.scope.lookup_offset('self')
             object_attr_offset = self.attrtable[c.className][idExpr.id]['offset']
             object_attr_type = self.attrtable[c.className][idExpr.id]['type']
+            ty = object_attr_type
 
             ret = TAB + "movq {}(%rbp), %rax".format(object_addr_offset) + NEWLINE
-            # if object_attr_type in ['Int', 'String', 'Bool']:
-            #     ret += TAB + "movq (%rax), %rax".format(object_attr_offset) + NEWLINE
-            #     ret += TAB + "addq ${}, %rax".format(object_attr_offset) + NEWLINE
-            # else:
             ret += TAB + "movq {}(%rax), %rax".format(object_attr_offset) + NEWLINE
 
+        if self.scope.lookup_type(idExpr.id) == 'Int' or self.attrtable[c.className][idExpr.id]['type'] == 'Int':
+            if not isLvalue:
+                ret += TAB + "movq {}(%rax), %rax".format(INTCONST_VALOFFSET) + NEWLINE
 
-            return ret, object_attr_type
+        return ret, ty
 
         exit("{} not in params_offset").format(idExpr.id)
 
-
-        
-    def code_genNot(self, c, method, num_locals, expr, lvalue):
+    def code_genNot(self, c, method, num_locals, expr, isLvalue):
         if isinstance(expr, GreaterThan):
-            return code_genExpr(self, c, method, num_locals, LessEq(expr.e1, expr.e2), lvalue)
+            return code_genExpr(self, c, method, num_locals, LessEq(expr.e1, expr.e2), isLvalue)
         elif isinstance(expr, GreaterEq):
-            return code_genExpr(self, c, method, num_locals, LessThan(expr.e1, expr.e2), lvalue)
+            return code_genExpr(self, c, method, num_locals, LessThan(expr.e1, expr.e2), isLvalue)
         elif isinstance(expr, Eq):
-            return code_genExpr(self, c, method, num_locals, NotEq(expr.e1, expr.e2), lvalue)
+            return code_genExpr(self, c, method, num_locals, NotEq(expr.e1, expr.e2), isLvalue)
         elif isinstance(expr, NotEq):
-            return code_genExpr(self, c, method, num_locals, Eq(expr.e1, expr.e2), lvalue)
+            return code_genExpr(self, c, method, num_locals, Eq(expr.e1, expr.e2), isLvalue)
         elif isinstance(expr, LessThan):
-            return code_genExpr(self, c, method, num_locals, GreaterEq(expr.e1, expr.e2), lvalue)
+            return code_genExpr(self, c, method, num_locals, GreaterEq(expr.e1, expr.e2), isLvalue)
         elif isinstance(expr, LessEq):
-            return code_genExpr(self, c, method, num_locals, GreaterThan(expr.e1, expr.e2), lvalue)
+            return code_genExpr(self, c, method, num_locals, GreaterThan(expr.e1, expr.e2), isLvalue)
         else:
             exit("this should not happend - code genNode")
         
-    def code_genBinayArith(self, c, method, num_locals, expr, lvalue):
+    def code_genBinayArith(self, c, method, num_locals, expr, isLvalue):
         if isinstance(expr, Plus):
             op = "addq"
         elif isinstance(expr, Minus):
@@ -621,8 +649,15 @@ class CGen(object):
         elif isinstance(expr, Divide):
             op = "idivq"
 
-        e1, _ = self.code_genExpr(c, method, num_locals, expr.e1, lvalue)
-        e2, _ = self.code_genExpr(c, method, num_locals, expr.e2, lvalue)
+        e1, ty1 = self.code_genExpr(c, method, num_locals, expr.e1, False)
+        e2, ty2 = self.code_genExpr(c, method, num_locals, expr.e2, False)
+
+        # if isinstance(expr.e1, Id):
+        #     e1 += TAB + "movq {}(%rax), %rax".format(INTCONST_VALOFFSET) + NEWLINE
+        
+        # if isinstance(expr.e2, Id):
+        #     e2 += TAB + "movq {}(%rax), %rax".format(INTCONST_VALOFFSET) + NEWLINE
+
 
         ret = e1 + NEWLINE
         ret += TAB + "push %rax" + NEWLINE
@@ -635,15 +670,22 @@ class CGen(object):
         else:
             ret += TAB + "{} %rdi, %rax".format(op) + NEWLINE
 
-        # ret += TAB + "{} %rax, %rdi".format(op) + NEWLINE
-        # ret += TAB + "movq %rdi, %rax" + NEWLINE
+        ret += TAB + "movq %rax, %rdi" + NEWLINE
+        ret += TAB + "pushq %rdi" + NEWLINE
+        ret += TAB + "subq $8, %rsp" + NEWLINE
+
+        newcode, _ = self.code_genNew(c, method, num_locals, NewConstruct("Int"), isLvalue)
+        ret += newcode + NEWLINE
+        ret += TAB + "addq $8, %rsp" + NEWLINE
+        ret += TAB + "popq %rdi" + NEWLINE
+        ret += TAB + "movq %rdi, {}(%rax)".format(INTCONST_VALOFFSET) + NEWLINE
 
         return ret, 'Int'
 
-    def code_genBinary(self, c, method, num_locals, expr, lvalue):
+    def code_genBinary(self, c, method, num_locals, expr, isLvalue):
 
         if isinstance(expr, (Plus, Minus, Multiply, Divide)):
-            return self.code_genBinayArith(c, method, num_locals, expr, lvalue)
+            return self.code_genBinayArith(c, method, num_locals, expr, isLvalue)
         
         # condition
         if isinstance(expr, GreaterThan):
@@ -659,8 +701,10 @@ class CGen(object):
         elif isinstance(expr, NotEq):
             e = "ne"
 
-        e1, _ = self.code_genExpr(c, method, num_locals, expr.e1, lvalue)
-        e2, _ = self.code_genExpr(c, method, num_locals, expr.e2, lvalue)
+        e1, _ = self.code_genExpr(c, method, num_locals, expr.e1, False)
+        e2, _ = self.code_genExpr(c, method, num_locals, expr.e2, False)
+
+        
 
         ret = e1
         ret += TAB + "pushq %rax" + NEWLINE
@@ -672,15 +716,15 @@ class CGen(object):
 
         return ret, 'Bool'
 
-    def code_genWhile(self, c, method, num_locals, whileExpr):
+    def code_genWhile(self, c, method, num_locals, whileExpr, isLvalue):
 
         seqNum = self.genSeqNum()
 
         begin_label = c.className + "." + method.methodName + ".loop_start." + str(seqNum)
         end_label = c.className + "." + method.methodName + ".loop_end." + str(seqNum)
 
-        cnd, _ = self.code_genExpr(c, method, num_locals, whileExpr.condition, lvalue)
-        body, _ = self.code_genExpr(c, method, num_locals, whileExpr.bodyExpr, lvalue)
+        cnd, _ = self.code_genExpr(c, method, num_locals, whileExpr.condition, False)
+        body, _ = self.code_genExpr(c, method, num_locals, whileExpr.bodyExpr, isLvalue)
 
         ret = begin_label + COLON + NEWLINE
         ret += cnd + NEWLINE
@@ -694,15 +738,15 @@ class CGen(object):
         return ret, 'Object'
         
     
-    def code_genIf(self, c, method, num_locals, ifExpr, lvalue):
+    def code_genIf(self, c, method, num_locals, ifExpr, isLvalue):
 
         seqNum = self.genCondSeq()
         els_label = c.className + "."  + method.methodName + ".else." + str(seqNum)
         end_label = c.className + "."  + method.methodName + ".end." + str(seqNum)
 
-        cnd, _ = self.code_genExpr(c, method, num_locals, ifExpr.cnd, lvalue)
-        thn, _ = self.code_genExpr(c, method, num_locals, ifExpr.thn, lvalue)
-        els, _ = self.code_genExpr(c, method, num_locals, ifExpr.els, lvalue)
+        cnd, _ = self.code_genExpr(c, method, num_locals, ifExpr.cnd, isLvalue)
+        thn, _ = self.code_genExpr(c, method, num_locals, ifExpr.thn, isLvalue)
+        els, _ = self.code_genExpr(c, method, num_locals, ifExpr.els, isLvalue)
 
         ret = TAB + "cmpq $1, %rax" + NEWLINE
         ret += TAB + "jne {}".format(els_label) + NEWLINE
@@ -715,37 +759,43 @@ class CGen(object):
 
         return cnd + ret, _
 
-    def code_genBoolean(self, c, method, num_locals, booleanExpr, lvalue):
+    def code_genBoolean(self, c, method, num_locals, booleanExpr, isLvalue):
         if booleanExpr.bval:
             return TAB + "movq $1, %rax" + NEWLINE, 'Bool'
         
         return TAB + "movq $0, %rax" + NEWLINE, 'Bool'
 
-    def code_genString(self, c, method, num_locals, stringExpr, lvalue):
+    def code_genString(self, c, method, num_locals, stringExpr, isLvalue):
 
         if stringExpr.sval in self.stringtable:
-            string_lab = self.stringtable[stringExpr.sval]
+            string_lab = self.stringtable[stringExpr.sval]['label']
         else:
             seq = self.genSeqNum()
             string_lab = "string_const" + str(seq)
-            self.stringtable[stringExpr.sval] = string_lab
+            string_content_lab = "string_content" + str(seq)
+            self.stringtable[stringExpr.sval] = {}
+            self.stringtable[stringExpr.sval]['content'] = string_content_lab
+            self.stringtable[stringExpr.sval]['label'] = string_lab
+            self.str_contenttable[string_content_lab] = stringExpr.sval
 
             if not str(len(stringExpr.sval)) in self.inttable:
                 int_lab = "int_const" + str(seq)
-                self.inttable[str(len(stringExpr.sval))] = int_lab 
+                self.inttable[str(len(stringExpr.sval))] = int_lab
+
+
 
         
         ret = TAB + "leaq {}(%rip), %rax".format(string_lab) + NEWLINE
 
-        if lvalue:
+        if isLvalue:
             return ret, 'String'
 
-        # the actual string is located at offset 32, the fifth field
-        ret += TAB + "addq ${}, %rax".format(STRCONST_STROFFSET) + NEWLINE
+        # # the actual string is located at offset 32, the fifth field
+        ret += TAB + "movq {}(%rax), %rax".format(STRCONST_STROFFSET) + NEWLINE
 
         return ret, 'String'
 
-    def code_genInteger(self, c, method, num_locals, intExpr, lvalue):
+    def code_genInteger(self, c, method, num_locals, intExpr, isLvalue):
         if str(intExpr.ival) in self.inttable:
             int_label = self.inttable[str(intExpr.ival)]
         else:
@@ -756,16 +806,14 @@ class CGen(object):
         # get constant object address, then get content at offset
         ret = TAB + "leaq {}(%rip), %rax".format(int_label) + NEWLINE
 
-        if lvalue:
+        if isLvalue:
             return ret, 'Int'
 
         ret += TAB + "movq {}(%rax), %rax".format(INTCONST_VALOFFSET) + NEWLINE
-        # ret += TAB + "addq ${}, %rax".format(INTCONST_VALOFFSET) + NEWLINE
-        # ret += TAB + "movq (%rax), %rax" + NEWLINE
 
         return ret, 'Int'
 
-    def code_genDispatch(self, c: 'Class', method, num_locals, dispatchExpr, lvalue):
+    def code_genDispatch(self, c: 'Class', method, num_locals, dispatchExpr, isLvalue):
         ret = ""
 
         obj_code, obj_ty = self.code_genExpr(c, method, num_locals, dispatchExpr.objExpr, True)
@@ -783,7 +831,7 @@ class CGen(object):
         
         stack_count = 0
         for i, arg in reversed(list(enumerate(dispatchExpr.arguments))):
-            arg_code, _ = self.code_genExpr(c, method, num_locals, arg, lvalue)
+            arg_code, _ = self.code_genExpr(c, method, num_locals, arg, True)
 
             # ret += self.caller_save_push()
             ret += arg_code
@@ -820,11 +868,11 @@ class CGen(object):
 
         return ret, ret_type
 
-    def code_genAssignment(self, c: 'Class', method, num_locals, assignExpr, lvalue):
+    def code_genAssignment(self, c: 'Class', method, num_locals, assignExpr, isLvalue):
         ret = ""
 
         lhs = assignExpr.id
-        rhs_code, rhs_ty = self.code_genExpr(c, method, num_locals, assignExpr.expr, lvalue)
+        rhs_code, rhs_ty = self.code_genExpr(c, method, num_locals, assignExpr.expr, True)
 
         ret += rhs_code
 

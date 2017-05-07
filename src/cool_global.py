@@ -30,6 +30,8 @@ INIT = "init"
 OBJTABLE = "class_objTab"
 OBJ_ADDR_REG = "%rdi"
 
+OBJ_HEADER_LEN = 3
+
 
 
 TAG_OFFSET = '0'
@@ -47,3 +49,7 @@ INTCONST_VALOFFSET = "24"
 ALIGNMENT_SIZE = 16
 
 STACK_SELF_OFFST = -40
+
+
+STRING_DIRECTIVE = ".string"
+INT_DIRECTIVE = ".int"

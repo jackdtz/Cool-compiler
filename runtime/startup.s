@@ -6,6 +6,7 @@ obj_attr = 24
 
 string_len_offset = 24
 string_str_offset = 32
+int_content_offset = 24
 
 .data
     .globl _main
@@ -96,7 +97,7 @@ string_str_offset = 32
         subq $16, %rsp
         movq %rdi, 0(%rsp)
 
-        movq %rsi, %rdi
+        movq string_str_offset(%rsi), %rdi
         callq _print_string
 
         movq 0(%rsp), %rax
@@ -109,7 +110,8 @@ string_str_offset = 32
         pushq %rbp
         movq %rsp, %rbp
 
-        movq %rsi, %rdi
+        movq int_content_offset(%rsi), %rdi
+
         callq _print_int
 
         leave

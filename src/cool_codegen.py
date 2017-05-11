@@ -639,7 +639,7 @@ class CGen(object):
         else:
             exit("this should not happend - code genNode")
         
-    def code_genBinayArith(self, c, method, num_locals, expr, isLvalue):
+    def code_genBinaryArith(self, c, method, num_locals, expr, isLvalue):
         if isinstance(expr, Plus):
             op = "addq"
         elif isinstance(expr, Minus):
@@ -652,11 +652,6 @@ class CGen(object):
         e1, ty1 = self.code_genExpr(c, method, num_locals, expr.e1, False)
         e2, ty2 = self.code_genExpr(c, method, num_locals, expr.e2, False)
 
-        # if isinstance(expr.e1, Id):
-        #     e1 += TAB + "movq {}(%rax), %rax".format(INTCONST_VALOFFSET) + NEWLINE
-        
-        # if isinstance(expr.e2, Id):
-        #     e2 += TAB + "movq {}(%rax), %rax".format(INTCONST_VALOFFSET) + NEWLINE
 
 
         ret = e1 + NEWLINE
@@ -685,7 +680,7 @@ class CGen(object):
     def code_genBinary(self, c, method, num_locals, expr, isLvalue):
 
         if isinstance(expr, (Plus, Minus, Multiply, Divide)):
-            return self.code_genBinayArith(c, method, num_locals, expr, isLvalue)
+            return self.code_genBinaryArith(c, method, num_locals, expr, isLvalue)
         
         # condition
         if isinstance(expr, GreaterThan):
@@ -745,8 +740,8 @@ class CGen(object):
         end_label = c.className + "."  + method.methodName + ".end." + str(seqNum)
 
         cnd, _ = self.code_genExpr(c, method, num_locals, ifExpr.cnd, isLvalue)
-        thn, _ = self.code_genExpr(c, method, num_locals, ifExpr.thn, isLvalue)
-        els, _ = self.code_genExpr(c, method, num_locals, ifExpr.els, isLvalue)
+        thn, _ = self.code_genExpr(c, method, num_locals, ifExpr.thn, True)
+        els, _ = self.code_genExpr(c, method, num_locals, ifExpr.els, True)
 
         ret = TAB + "cmpq $1, %rax" + NEWLINE
         ret += TAB + "jne {}".format(els_label) + NEWLINE
@@ -865,6 +860,10 @@ class CGen(object):
         ret += TAB + "popq %rdi" + NEWLINE
 
         ret_type = str(self.type_scope.lookup(c.className).lookupType(method.methodName).ret_ty)
+
+        if not isLvalue and ret_type == 'Int':
+            ret += TAB + "movq {}(%rax), %rax".format(INTCONST_VALOFFSET) + NEWLINE
+
 
         return ret, ret_type
 

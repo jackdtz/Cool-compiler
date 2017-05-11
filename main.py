@@ -14,8 +14,8 @@ if __name__ == "__main__":
 
     parser = make_parser()
 
-    filename = sys.argv[1]
-    # filename = "Tests/let.cl"
+    # filename = sys.argv[1]
+    filename = "Tests/fib.cl"
 
     with open(filename) as f:
         cool_program_code = f.read()

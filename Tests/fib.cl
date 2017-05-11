@@ -8,6 +8,6 @@ class Main inherits IO {
     };
 
     main() : Object {
-        out_int(fib(15))
+        out_int(fib(10))
     };
 };

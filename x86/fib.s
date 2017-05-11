@@ -61,16 +61,13 @@ Main_protoObj:
     .quad    3
     .quad    Main_dispatch_table
 
-Bool_dispatch_table:
+Int_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
 
-String_dispatch_table:
+Bool_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
-    .quad    String_length
-    .quad    String_concat
-    .quad    String_substr
 
 Main_dispatch_table:
     .quad    Object_abort
@@ -82,6 +79,17 @@ Main_dispatch_table:
     .quad    Main_fib
     .quad    Main_main
 
+Object_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
+
+String_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
+    .quad    String_length
+    .quad    String_concat
+    .quad    String_substr
+
 IO_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
@@ -89,19 +97,11 @@ IO_dispatch_table:
     .quad    IO_out_int
     .quad    IO_in_string
     .quad    _IO_in_int
-
-Object_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
-
-Int_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
-int_const2:
+int_const0:
     .quad    3
     .quad    4
     .quad    Int_dispatch_table
-    .quad    1
+    .quad    0
 
 int_const1:
     .quad    3
@@ -109,17 +109,17 @@ int_const1:
     .quad    Int_dispatch_table
     .quad    2
 
+int_const2:
+    .quad    3
+    .quad    4
+    .quad    Int_dispatch_table
+    .quad    1
+
 int_const3:
     .quad    3
     .quad    4
     .quad    Int_dispatch_table
-    .quad    15
-
-int_const0:
-    .quad    3
-    .quad    4
-    .quad    Int_dispatch_table
-    .quad    0
+    .quad    10
 
 string_const0:
     .quad    2
@@ -214,13 +214,13 @@ String_init:
     popq %rdx
     subq $16, %rsp
     movq %rdi, -40(%rbp)
-    leaq int_const0(%rip), %rax
-    movq -40(%rbp), %rdi
-    movq %rax, 24(%rdi)
-
     leaq string_const0(%rip), %rax
     movq -40(%rbp), %rdi
     movq %rax, 32(%rdi)
+
+    leaq int_const0(%rip), %rax
+    movq -40(%rbp), %rdi
+    movq %rax, 24(%rdi)
     addq $16, %rsp
     popq %r14
     popq %r13
@@ -329,7 +329,6 @@ Main_fib:
     cmpq $1, %rax
     jne Main.fib.else.0
     movq -48(%rbp), %rax
-    movq 24(%rax), %rax
 
     jmp Main.fib.end.0
 
@@ -423,6 +422,7 @@ Main.fib.else.0:
     popq %rdx
     addq $8, %rsp
     popq %rdi
+    movq 24(%rax), %rax
 
     push %rax
     movq -40(%rbp), %rax
@@ -514,6 +514,7 @@ Main.fib.else.0:
     popq %rdx
     addq $8, %rsp
     popq %rdi
+    movq 24(%rax), %rax
 
     movq %rax, %rdi
     popq %rax

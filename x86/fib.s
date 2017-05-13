@@ -61,14 +61,6 @@ Main_protoObj:
     .quad    3
     .quad    Main_dispatch_table
 
-Int_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
-
-Bool_dispatch_table:
-    .quad    Object_abort
-    .quad    Object_copy
-
 Main_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
@@ -79,7 +71,7 @@ Main_dispatch_table:
     .quad    Main_fib
     .quad    Main_main
 
-Object_dispatch_table:
+Int_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
 
@@ -90,6 +82,14 @@ String_dispatch_table:
     .quad    String_concat
     .quad    String_substr
 
+Bool_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
+
+Object_dispatch_table:
+    .quad    Object_abort
+    .quad    Object_copy
+
 IO_dispatch_table:
     .quad    Object_abort
     .quad    Object_copy
@@ -97,29 +97,29 @@ IO_dispatch_table:
     .quad    IO_out_int
     .quad    IO_in_string
     .quad    _IO_in_int
-int_const0:
-    .quad    3
-    .quad    4
-    .quad    Int_dispatch_table
-    .quad    0
-
 int_const1:
     .quad    3
     .quad    4
     .quad    Int_dispatch_table
     .quad    2
 
-int_const2:
+int_const0:
     .quad    3
     .quad    4
     .quad    Int_dispatch_table
-    .quad    1
+    .quad    0
 
 int_const3:
     .quad    3
     .quad    4
     .quad    Int_dispatch_table
     .quad    10
+
+int_const2:
+    .quad    3
+    .quad    4
+    .quad    Int_dispatch_table
+    .quad    1
 
 string_const0:
     .quad    2
@@ -214,13 +214,13 @@ String_init:
     popq %rdx
     subq $16, %rsp
     movq %rdi, -40(%rbp)
-    leaq string_const0(%rip), %rax
-    movq -40(%rbp), %rdi
-    movq %rax, 32(%rdi)
-
     leaq int_const0(%rip), %rax
     movq -40(%rbp), %rdi
     movq %rax, 24(%rdi)
+
+    leaq string_const0(%rip), %rax
+    movq -40(%rbp), %rdi
+    movq %rax, 32(%rdi)
     addq $16, %rsp
     popq %r14
     popq %r13
